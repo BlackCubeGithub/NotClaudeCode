@@ -8,4 +8,8 @@ export { LSTool } from './ls';
 export { RunCommandTool } from './run-command';
 export { CheckCommandStatusTool } from './check-command-status';
 export { StopCommandTool } from './stop-command';
+export { TodoWriteTool, getTodoManager } from './todo-write';
+export { TodoManager } from './todo-manager';
+export { WebSearchTool } from './web-search';
+export { WebFetchTool } from './web-fetch';
 export { getAllTools } from './registry';

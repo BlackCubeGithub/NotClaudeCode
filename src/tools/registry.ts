@@ -8,6 +8,9 @@ import { LSTool } from './ls';
 import { RunCommandTool } from './run-command';
 import { CheckCommandStatusTool } from './check-command-status';
 import { StopCommandTool } from './stop-command';
+import { TodoWriteTool } from './todo-write';
+import { WebSearchTool } from './web-search';
+import { WebFetchTool } from './web-fetch';
 
 export function getAllTools(): Tool[] {
   return [
@@ -20,5 +23,8 @@ export function getAllTools(): Tool[] {
     new RunCommandTool(),
     new CheckCommandStatusTool(),
     new StopCommandTool(),
+    new TodoWriteTool(),
+    new WebSearchTool(),
+    new WebFetchTool(),
   ];
 }

@@ -14,7 +14,7 @@
 
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone https://github.com/BlackCubeGithub/NotClaudeCode.git
 cd NotClaudeCode
 
 # 安装依赖
@@ -89,6 +89,9 @@ npm run dev -- -p openai -m gpt-4-turbo-preview
 | `RunCommand` | 执行终端命令 |
 | `CheckCommandStatus` | 检查命令状态 |
 | `StopCommand` | 停止运行中的命令 |
+| `TodoWrite` | 创建和管理任务列表 |
+| `WebSearch` | 搜索互联网信息 |
+| `WebFetch` | 获取网页内容 |
 
 ## 项目结构
 
