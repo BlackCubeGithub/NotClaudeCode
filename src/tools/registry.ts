@@ -11,6 +11,7 @@ import { StopCommandTool } from './stop-command';
 import { TodoWriteTool } from './todo-write';
 import { WebSearchTool } from './web-search';
 import { WebFetchTool } from './web-fetch';
+import { GetTimeTool } from './get-time';
 
 export function getAllTools(): Tool[] {
   return [
@@ -26,5 +27,6 @@ export function getAllTools(): Tool[] {
     new TodoWriteTool(),
     new WebSearchTool(),
     new WebFetchTool(),
+    new GetTimeTool(),
   ];
 }

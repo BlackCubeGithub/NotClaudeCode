@@ -158,6 +158,7 @@ async function handleSlashCommand(
       console.log('  /help     - Show this help message');
       console.log('  /clear    - Clear conversation history');
       console.log('  /history  - Show conversation history');
+      console.log('  /context  - Show context usage statistics');
       console.log('  /exit     - Exit the program');
       console.log('  /quit     - Exit the program\n');
       return;
@@ -175,6 +176,47 @@ async function handleSlashCommand(
         const role = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
         console.log(chalk.gray(`[${index}] ${role}: ${msg.content?.substring(0, 100)}...`));
       });
+      console.log();
+      return;
+
+    case 'context':
+      const stats = agent.getContextStats();
+      console.log(chalk.cyan('\n📊 Context Usage Statistics\n'));
+      console.log(chalk.white(`Total Tokens: ${stats.totalTokens.toLocaleString()}`));
+      console.log(chalk.white(`Total Characters: ${stats.totalChars.toLocaleString()}`));
+      console.log(chalk.white(`Total Messages: ${stats.messageCount.total}`));
+      console.log();
+      console.log(chalk.cyan('Token Breakdown by Role:'));
+      console.log(chalk.gray('─'.repeat(50)));
+      
+      const roleLabels: Record<string, { icon: string; color: (s: string) => string }> = {
+        system: { icon: '⚙️', color: chalk.magenta },
+        user: { icon: '👤', color: chalk.green },
+        assistant: { icon: '🤖', color: chalk.blue },
+        tool: { icon: '🔧', color: chalk.yellow },
+      };
+
+      for (const [role, data] of Object.entries(stats.breakdown)) {
+        const label = roleLabels[role];
+        const bar = '█'.repeat(Math.ceil(data.percentage / 5));
+        console.log(
+          `  ${label.icon} ${label.color(role.padEnd(10))} ` +
+          `${data.tokens.toLocaleString().padStart(6)} tokens ` +
+          `(${data.percentage.toString().padStart(3)}%) ` +
+          chalk.gray(bar)
+        );
+      }
+      
+      console.log(chalk.gray('─'.repeat(50)));
+      console.log();
+      console.log(chalk.cyan('Message Count by Role:'));
+      console.log(chalk.gray('─'.repeat(50)));
+      for (const [role, count] of Object.entries(stats.messageCount)) {
+        if (role === 'total') continue;
+        const label = roleLabels[role];
+        console.log(`  ${label.icon} ${label.color(role.padEnd(10))} ${count} messages`);
+      }
+      console.log(chalk.gray('─'.repeat(50)));
       console.log();
       return;
 

@@ -12,4 +12,5 @@ export { TodoWriteTool, getTodoManager } from './todo-write';
 export { TodoManager } from './todo-manager';
 export { WebSearchTool } from './web-search';
 export { WebFetchTool } from './web-fetch';
+export { GetTimeTool } from './get-time';
 export { getAllTools } from './registry';

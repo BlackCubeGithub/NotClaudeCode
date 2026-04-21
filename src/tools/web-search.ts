@@ -1,14 +1,26 @@
 import { BaseTool } from './base';
 import { ToolDefinition, ToolResult } from '../types';
-import * as https from 'https';
 
-interface SearchResult {
+interface TavilySearchResult {
   title: string;
-  link: string;
-  snippet: string;
+  url: string;
+  content: string;
+  score: number;
+}
+
+interface TavilyResponse {
+  results: TavilySearchResult[];
+  answer?: string;
 }
 
 export class WebSearchTool extends BaseTool {
+  private apiKey: string | undefined;
+
+  constructor() {
+    super();
+    this.apiKey = process.env.TAVILY_API_KEY;
+  }
+
   definition: ToolDefinition = {
     name: 'WebSearch',
     description:
@@ -24,10 +36,6 @@ export class WebSearchTool extends BaseTool {
           type: 'number',
           description: 'Maximum number of search results to return. Default is 5.',
         },
-        lr: {
-          type: 'string',
-          description: 'Language restriction for search results (e.g., "lang_en" for English)',
-        },
       },
       required: ['query'],
     },
@@ -37,132 +45,61 @@ export class WebSearchTool extends BaseTool {
     try {
       this.validateRequiredParams(params, ['query']);
 
-      const query = params.query as string;
-      const num = (params.num as number) || 5;
-      const lr = params.lr as string | undefined;
-
-      const results = await this.search(query, num, lr);
-
-      if (results.length === 0) {
-        return this.success('No search results found.');
+      if (!this.apiKey) {
+        return this.error(
+          'TAVILY_API_KEY is not set. Please set it in your environment or .env file.'
+        );
       }
 
-      const output = results
-        .map(
-          (result, index) =>
-            `${index + 1}. **${result.title}**\n   URL: ${result.link}\n   ${result.snippet}`
-        )
-        .join('\n\n');
+      const query = params.query as string;
+      const num = (params.num as number) || 5;
 
-      return this.success(output);
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          query,
+          max_results: Math.min(num, 10),
+          include_answer: true,
+          include_raw_content: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return this.error(`Tavily API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = (await response.json()) as TavilyResponse;
+
+      const lines: string[] = [];
+
+      if (data.answer) {
+        lines.push(`## Answer\n${data.answer}\n`);
+      }
+
+      if (data.results && data.results.length > 0) {
+        lines.push('## Search Results\n');
+        for (let i = 0; i < data.results.length; i++) {
+          const result = data.results[i];
+          lines.push(`### ${i + 1}. ${result.title}`);
+          lines.push(`URL: ${result.url}`);
+          lines.push(`\n${result.content}\n`);
+        }
+      }
+
+      if (lines.length === 0) {
+        return this.success('No results found.');
+      }
+
+      return this.success(lines.join('\n'));
     } catch (error) {
       return this.error(
         `Error searching web: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-  }
-
-  private fetchUrl(url: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const req = https.get(
-        url,
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            Accept: 'application/json, text/plain, */*',
-          },
-        },
-        (res) => {
-          let data = '';
-          res.on('data', (chunk) => (data += chunk));
-          res.on('end', () => resolve(data));
-          res.on('error', reject);
-        }
-      );
-      req.on('error', reject);
-      req.setTimeout(10000, () => {
-        req.destroy();
-        reject(new Error('Request timeout'));
-      });
-    });
-  }
-
-  private async search(query: string, num: number, lr?: string): Promise<SearchResult[]> {
-    const results: SearchResult[] = [];
-    const encodedQuery = encodeURIComponent(query);
-
-    try {
-      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodedQuery}&limit=${num}&format=json`;
-      const wikiData = await this.fetchUrl(wikiUrl);
-      const wikiResults = JSON.parse(wikiData) as [string, string[], string[], string[]];
-
-      if (wikiResults && wikiResults.length >= 4) {
-        const titles = wikiResults[1] || [];
-        const snippets = wikiResults[2] || [];
-        const links = wikiResults[3] || [];
-
-        for (let i = 0; i < Math.min(titles.length, num); i++) {
-          if (titles[i] && links[i]) {
-            results.push({
-              title: titles[i],
-              link: links[i],
-              snippet: snippets[i] || 'No description available.',
-            });
-          }
-        }
-      }
-    } catch {
-      // Wikipedia search failed, continue with fallback
-    }
-
-    if (results.length === 0) {
-      const isNewsQuery = /news|新闻|头条|latest|recent|today|今日/i.test(query);
-      
-      if (isNewsQuery) {
-        results.push({
-          title: 'BBC News - World',
-          link: 'https://www.bbc.com/news/world',
-          snippet: 'Latest world news from BBC.',
-        });
-        results.push({
-          title: 'Reuters - World News',
-          link: 'https://www.reuters.com/world/',
-          snippet: 'Breaking world news from Reuters.',
-        });
-        results.push({
-          title: 'Google News',
-          link: `https://news.google.com/search?q=${encodedQuery}`,
-          snippet: `Search news for "${query}" on Google News.`,
-        });
-        results.push({
-          title: 'CNN - Breaking News',
-          link: 'https://edition.cnn.com/',
-          snippet: 'Breaking news from CNN.',
-        });
-        results.push({
-          title: '新华网',
-          link: 'http://www.xinhuanet.com/',
-          snippet: '中国新华新闻网',
-        });
-      } else {
-        results.push({
-          title: 'Google Search',
-          link: `https://www.google.com/search?q=${encodedQuery}${lr ? '&lr=' + lr : ''}`,
-          snippet: `Search for "${query}" on Google.`,
-        });
-        results.push({
-          title: 'Bing Search',
-          link: `https://www.bing.com/search?q=${encodedQuery}`,
-          snippet: `Search for "${query}" on Bing.`,
-        });
-        results.push({
-          title: 'DuckDuckGo Search',
-          link: `https://duckduckgo.com/?q=${encodedQuery}`,
-          snippet: `Search for "${query}" on DuckDuckGo.`,
-        });
-      }
-    }
-
-    return results.slice(0, num);
   }
 }

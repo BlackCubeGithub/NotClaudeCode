@@ -16,8 +16,9 @@ You have access to a set of tools you can use to accomplish tasks:
 - CheckCommandStatus: Check status of running commands
 - StopCommand: Stop running commands
 - TodoWrite: Create and manage a task list for tracking progress
-- WebSearch: Search the internet for information
-- WebFetch: Fetch and read content from a URL
+- WebSearch: Search the internet using Tavily AI
+- WebFetch: Fetch and convert web page content to markdown
+- GetTime: Get the current date and time
 
 When working with files:
 - Always use absolute paths
@@ -38,15 +39,14 @@ When using TodoWrite:
 - Update the list as you progress through tasks
 
 When using WebSearch:
-- Use for knowledge that relies on real-time information
-- Use when you don't know something but it's required for the task
-- Use when user indicates your previous answer is not accurate
-- Avoid frequent searches to prevent bad user experience
+- Use GetTime first to get the current date for time-sensitive queries
+- Use for real-time information, current events, or topics you're unsure about
+- Be cautious as frequent searches impact user experience
+- Prefer WebFetch for detailed content from specific URLs
 
-When using WebFetch:
-- Use to get actual content from URLs found via WebSearch
-- Converts HTML to readable markdown format
-- Useful for reading news articles, documentation, etc.
+When using GetTime:
+- Use this tool when you need to know the current date or time
+- Especially important before WebSearch for time-sensitive queries like news, weather, stock prices
 
 Current environment:
 - OS: ${os.type()} ${os.release()}
@@ -251,5 +251,77 @@ export class Agent {
         content: SYSTEM_PROMPT,
       },
     ];
+  }
+
+  getContextStats(): {
+    totalTokens: number;
+    totalChars: number;
+    breakdown: {
+      system: { tokens: number; chars: number; percentage: number };
+      user: { tokens: number; chars: number; percentage: number };
+      assistant: { tokens: number; chars: number; percentage: number };
+      tool: { tokens: number; chars: number; percentage: number };
+    };
+    messageCount: {
+      system: number;
+      user: number;
+      assistant: number;
+      tool: number;
+      total: number;
+    };
+  } {
+    const countTokens = (text: string | null): number => {
+      if (!text) return 0;
+      return Math.ceil(text.length / 4);
+    };
+
+    const stats = {
+      system: { tokens: 0, chars: 0, percentage: 0 },
+      user: { tokens: 0, chars: 0, percentage: 0 },
+      assistant: { tokens: 0, chars: 0, percentage: 0 },
+      tool: { tokens: 0, chars: 0, percentage: 0 },
+    };
+
+    const messageCount = {
+      system: 0,
+      user: 0,
+      assistant: 0,
+      tool: 0,
+      total: this.messages.length,
+    };
+
+    for (const msg of this.messages) {
+      const content = msg.content || '';
+      const tokens = countTokens(content);
+      const chars = content.length;
+
+      if (msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          const argsTokens = countTokens(tc.function.arguments);
+          stats[msg.role].tokens += argsTokens;
+          stats[msg.role].chars += tc.function.arguments.length;
+        }
+      }
+
+      stats[msg.role].tokens += tokens;
+      stats[msg.role].chars += chars;
+      messageCount[msg.role]++;
+    }
+
+    const totalTokens = Object.values(stats).reduce((sum, s) => sum + s.tokens, 0);
+    const totalChars = Object.values(stats).reduce((sum, s) => sum + s.chars, 0);
+
+    for (const role of Object.keys(stats) as Array<keyof typeof stats>) {
+      stats[role].percentage = totalTokens > 0 
+        ? Math.round((stats[role].tokens / totalTokens) * 100) 
+        : 0;
+    }
+
+    return {
+      totalTokens,
+      totalChars,
+      breakdown: stats,
+      messageCount,
+    };
   }
 }

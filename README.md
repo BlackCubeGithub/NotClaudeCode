@@ -66,6 +66,7 @@ npm run dev -- -p openai -m gpt-4-turbo-preview
 | `/help` | 显示帮助信息 |
 | `/clear` | 清除对话历史 |
 | `/history` | 显示对话历史 |
+| `/context` | 显示上下文使用统计 |
 | `/exit` 或 `/quit` | 退出程序 |
 
 ### 命令行参数
@@ -90,8 +91,9 @@ npm run dev -- -p openai -m gpt-4-turbo-preview
 | `CheckCommandStatus` | 检查命令状态 |
 | `StopCommand` | 停止运行中的命令 |
 | `TodoWrite` | 创建和管理任务列表 |
-| `WebSearch` | 搜索互联网信息 |
-| `WebFetch` | 获取网页内容 |
+| `WebSearch` | 使用 Tavily AI 搜索互联网 |
+| `WebFetch` | 获取网页内容并转换为 Markdown |
+| `GetTime` | 获取当前日期和时间 |
 
 ## 项目结构
 
