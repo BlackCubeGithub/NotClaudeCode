@@ -10,6 +10,8 @@ export class KimiProvider implements AIProvider {
     this.client = new OpenAI({
       apiKey,
       baseURL: 'https://api.moonshot.cn/v1',
+      timeout: 60000,
+      maxRetries: 3,
     });
     this.model = model;
     debugLog('PROVIDER', `Kimi provider initialized`, { model });

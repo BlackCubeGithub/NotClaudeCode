@@ -10,6 +10,8 @@ export class ZhipuProvider implements AIProvider {
     this.client = new OpenAI({
       apiKey,
       baseURL: 'https://open.bigmodel.cn/api/paas/v4',
+      timeout: 60000,
+      maxRetries: 3,
     });
     this.model = model;
     debugLog('PROVIDER', `Zhipu provider initialized`, { model });

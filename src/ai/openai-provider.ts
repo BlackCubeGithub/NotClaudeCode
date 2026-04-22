@@ -6,7 +6,11 @@ export class OpenAIProvider implements AIProvider {
   private model: string;
 
   constructor(apiKey: string, model: string = 'gpt-4-turbo-preview') {
-    this.client = new OpenAI({ apiKey });
+    this.client = new OpenAI({ 
+      apiKey,
+      timeout: 60000,
+      maxRetries: 3,
+    });
     this.model = model;
   }
 

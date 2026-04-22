@@ -1,5 +1,6 @@
 import { BaseTool } from './base';
 import { ToolDefinition, ToolResult } from '../types';
+import { fetchJsonWithRetry } from '../utils/retry';
 
 interface TavilySearchResult {
   title: string;
@@ -54,26 +55,26 @@ export class WebSearchTool extends BaseTool {
       const query = params.query as string;
       const num = (params.num as number) || 5;
 
-      const response = await fetch('https://api.tavily.com/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+      const data = await fetchJsonWithRetry<TavilyResponse>(
+        'https://api.tavily.com/search',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify({
+            query,
+            max_results: Math.min(num, 10),
+            include_answer: true,
+            include_raw_content: false,
+          }),
         },
-        body: JSON.stringify({
-          query,
-          max_results: Math.min(num, 10),
-          include_answer: true,
-          include_raw_content: false,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return this.error(`Tavily API error: ${response.status} - ${errorText}`);
-      }
-
-      const data = (await response.json()) as TavilyResponse;
+        {
+          maxRetries: 3,
+          timeout: 30000,
+        }
+      );
 
       const lines: string[] = [];
 

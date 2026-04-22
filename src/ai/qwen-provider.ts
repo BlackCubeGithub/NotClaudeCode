@@ -10,6 +10,8 @@ export class QwenProvider implements AIProvider {
     this.client = new OpenAI({
       apiKey,
       baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      timeout: 60000,
+      maxRetries: 3,
     });
     this.model = model;
     debugLog('PROVIDER', `Qwen provider initialized`, { model });

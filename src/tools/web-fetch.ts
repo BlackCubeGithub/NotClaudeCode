@@ -1,5 +1,6 @@
 import { BaseTool } from './base';
 import { ToolDefinition, ToolResult } from '../types';
+import { fetchTextWithRetry } from '../utils/retry';
 
 export class WebFetchTool extends BaseTool {
   definition: ToolDefinition = {
@@ -31,25 +32,19 @@ export class WebFetchTool extends BaseTool {
         return this.error(`Invalid URL: ${url}`);
       }
 
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      const html = await fetchTextWithRetry(
+        url,
+        {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
         },
-      });
-
-      if (!response.ok) {
-        return this.error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      const html = await response.text();
-
-      if (!contentType.includes('text/html')) {
-        const maxLength = 5000;
-        const truncated = html.length > maxLength ? html.substring(0, maxLength) + '\n...(truncated)' : html;
-        return this.success(truncated);
-      }
+        {
+          maxRetries: 3,
+          timeout: 30000,
+        }
+      );
 
       const markdown = this.htmlToMarkdown(html);
 
