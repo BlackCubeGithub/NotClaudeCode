@@ -1,12 +1,12 @@
 # NotClaudeCode
 
-一个 Claude Code 的复现项目，使用 TypeScript 实现，支持 DeepSeek 和 OpenAI API。
+一个 Claude Code 的复现项目，使用 TypeScript 实现，支持 DeepSeek、OpenAI、智谱、通义千问和 Kimi API。
 
 ## 功能特性
 
 - 🔧 **丰富的工具集**：文件读写、编辑、搜索、命令执行等
 - 🌊 **流式输出**：实时显示 AI 响应，提升交互体验
-- 🤖 **多模型支持**：支持 DeepSeek 和 OpenAI API
+- 🤖 **多模型支持**：支持 DeepSeek、OpenAI、智谱、通义千问和 Kimi API
 - 💬 **对话管理**：支持多轮对话、历史记录管理
 - 🎨 **美观的 CLI**：彩色输出、工具调用提示
 
@@ -41,6 +41,15 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 # DeepSeek API (推荐)
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
+
+# 智谱 API (可选)
+ZHIPU_API_KEY=your_zhipu_api_key_here
+
+# 通义千问 API (可选)
+QWEN_API_KEY=your_qwen_api_key_here
+
+# Kimi API (可选)
+KIMI_API_KEY=your_kimi_api_key_here
 ```
 
 ## 使用
@@ -57,6 +66,9 @@ npm start
 # 指定提供商和模型
 npm run dev -- --provider deepseek --model deepseek-chat
 npm run dev -- -p openai -m gpt-4-turbo-preview
+npm run dev -- -p zhipu -m glm-4-flash
+npm run dev -- -p qwen -m qwen-turbo
+npm run dev -- -p kimi -m moonshot-v1-8k
 ```
 
 ### CLI 命令
@@ -73,9 +85,10 @@ npm run dev -- -p openai -m gpt-4-turbo-preview
 
 | 参数 | 简写 | 说明 | 默认值 |
 |------|------|------|--------|
-| `--provider` | `-p` | AI 提供商 (openai, deepseek) | deepseek |
+| `--provider` | `-p` | AI 提供商 (openai, deepseek, zhipu, qwen, kimi) | deepseek |
 | `--model` | `-m` | AI 模型 | deepseek-chat |
 | `--directory` | `-d` | 工作目录 | 当前目录 |
+| `--debug` | | 启用调试模式 | false |
 
 ## 支持的工具
 

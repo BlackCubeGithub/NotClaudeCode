@@ -2,17 +2,17 @@ import OpenAI from 'openai';
 import { AIProvider, AIResponse, Message, ToolDefinition, StreamChunk } from '../types';
 import { debugLog } from '../utils/debug';
 
-export class DeepSeekProvider implements AIProvider {
+export class KimiProvider implements AIProvider {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, model: string = 'deepseek-chat') {
+  constructor(apiKey: string, model: string = 'moonshot-v1-8k') {
     this.client = new OpenAI({
       apiKey,
-      baseURL: 'https://api.deepseek.com/v1',
+      baseURL: 'https://api.moonshot.cn/v1',
     });
     this.model = model;
-    debugLog('PROVIDER', `DeepSeek provider initialized`, { model });
+    debugLog('PROVIDER', `Kimi provider initialized`, { model });
   }
 
   async chat(messages: Message[], tools: ToolDefinition[]): Promise<AIResponse> {

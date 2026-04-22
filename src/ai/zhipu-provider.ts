@@ -2,17 +2,17 @@ import OpenAI from 'openai';
 import { AIProvider, AIResponse, Message, ToolDefinition, StreamChunk } from '../types';
 import { debugLog } from '../utils/debug';
 
-export class DeepSeekProvider implements AIProvider {
+export class ZhipuProvider implements AIProvider {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, model: string = 'deepseek-chat') {
+  constructor(apiKey: string, model: string = 'glm-4-flash') {
     this.client = new OpenAI({
       apiKey,
-      baseURL: 'https://api.deepseek.com/v1',
+      baseURL: 'https://open.bigmodel.cn/api/paas/v4',
     });
     this.model = model;
-    debugLog('PROVIDER', `DeepSeek provider initialized`, { model });
+    debugLog('PROVIDER', `Zhipu provider initialized`, { model });
   }
 
   async chat(messages: Message[], tools: ToolDefinition[]): Promise<AIResponse> {

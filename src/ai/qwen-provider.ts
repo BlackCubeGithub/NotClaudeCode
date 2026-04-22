@@ -2,17 +2,17 @@ import OpenAI from 'openai';
 import { AIProvider, AIResponse, Message, ToolDefinition, StreamChunk } from '../types';
 import { debugLog } from '../utils/debug';
 
-export class DeepSeekProvider implements AIProvider {
+export class QwenProvider implements AIProvider {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, model: string = 'deepseek-chat') {
+  constructor(apiKey: string, model: string = 'qwen-turbo') {
     this.client = new OpenAI({
       apiKey,
-      baseURL: 'https://api.deepseek.com/v1',
+      baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     });
     this.model = model;
-    debugLog('PROVIDER', `DeepSeek provider initialized`, { model });
+    debugLog('PROVIDER', `Qwen provider initialized`, { model });
   }
 
   async chat(messages: Message[], tools: ToolDefinition[]): Promise<AIResponse> {

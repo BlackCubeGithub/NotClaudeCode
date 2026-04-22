@@ -2,6 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { Message, Tool, ToolDefinition, ToolResult, StreamChunk, AIProvider } from '../types';
 import { getAllTools } from '../tools';
+import { debugLog } from '../utils/debug';
 
 const SYSTEM_PROMPT = `You are NotClaudeCode, a powerful code assistant that helps users with software engineering tasks ,Inspired by Claude Code, developed by Blackcube for learning and research purposes.
 
@@ -108,6 +109,8 @@ export class Agent {
     onToolCall?: (toolName: string, params: Record<string, unknown>) => void
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const toolDefs = this.getToolDefinitions();
+    debugLog('AGENT', 'Starting stream request', { messageCount: this.messages.length });
+    
     const stream = this.provider.chatStream(this.messages, toolDefs);
 
     let content = '';
@@ -120,6 +123,10 @@ export class Agent {
       }
 
       if (chunk.type === 'tool_call' && chunk.toolCall) {
+        debugLog('TOOL_CALL', `Received tool call: ${chunk.toolCall.name}`, {
+          id: chunk.toolCall.id,
+          arguments: chunk.toolCall.arguments,
+        });
         toolCalls.push({
           id: chunk.toolCall.id,
           type: 'function',
@@ -131,6 +138,8 @@ export class Agent {
       }
 
       if (chunk.type === 'done') {
+        debugLog('AGENT', 'Stream completed', { contentLength: content.length, toolCallsCount: toolCalls.length });
+        
         if (toolCalls.length > 0) {
           this.messages.push({
             role: 'assistant',
@@ -143,6 +152,7 @@ export class Agent {
             const tool = this.tools.get(toolName);
 
             if (!tool) {
+              debugLog('ERROR', `Unknown tool: ${toolName}`);
               this.messages.push({
                 role: 'tool',
                 tool_call_id: toolCall.id,
@@ -159,11 +169,17 @@ export class Agent {
               params = {};
             }
 
+            debugLog('TOOL_EXEC', `Executing tool: ${toolName}`, params);
+
             if (onToolCall) {
               onToolCall(toolName, params);
             }
 
             const result = await tool.execute(params);
+            debugLog('TOOL_RESULT', `Tool result for ${toolName}`, { 
+              success: result.success,
+              outputLength: result.output?.length 
+            });
 
             this.messages.push({
               role: 'tool',

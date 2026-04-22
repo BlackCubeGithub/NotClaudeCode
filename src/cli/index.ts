@@ -3,9 +3,10 @@ import * as path from 'path';
 import * as fs from 'fs';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { OpenAIProvider, DeepSeekProvider } from '../ai';
+import { OpenAIProvider, DeepSeekProvider, ZhipuProvider, QwenProvider, KimiProvider } from '../ai';
 import { Agent } from '../core';
 import { AIProvider } from '../types';
+import { setDebugMode, isDebugMode } from '../utils/debug';
 
 const PACKAGE_VERSION = '0.1.0';
 
@@ -36,27 +37,42 @@ export async function startCLI(): Promise<void> {
     .description('NotClaudeCode - A Claude Code clone')
     .version(PACKAGE_VERSION)
     .option('-d, --directory <path>', 'Working directory', process.cwd())
-    .option('-p, --provider <provider>', 'AI provider to use (openai, deepseek)', 'deepseek')
+    .option('-p, --provider <provider>', 'AI provider to use (openai, deepseek, zhipu, qwen, kimi)', 'deepseek')
     .option('-m, --model <model>', 'AI model to use')
+    .option('--debug', 'Enable debug mode', false)
     .parse(process.argv);
 
   const options = program.opts();
+  setDebugMode(options.debug || false);
   const workingDirectory = path.resolve(options.directory);
   const providerName = options.provider.toLowerCase();
   const defaultModels: Record<string, string> = {
     openai: 'gpt-4-turbo-preview',
     deepseek: 'deepseek-chat',
+    zhipu: 'glm-4-flash',
+    qwen: 'qwen-turbo',
+    kimi: 'moonshot-v1-8k',
   };
   const model = options.model || defaultModels[providerName] || 'deepseek-chat';
 
   const apiKeys: Record<string, string | undefined> = {
     openai: process.env.OPENAI_API_KEY,
     deepseek: process.env.DEEPSEEK_API_KEY,
+    zhipu: process.env.ZHIPU_API_KEY,
+    qwen: process.env.QWEN_API_KEY,
+    kimi: process.env.KIMI_API_KEY,
   };
 
   const apiKey = apiKeys[providerName];
   if (!apiKey) {
-    const keyName = providerName === 'openai' ? 'OPENAI_API_KEY' : 'DEEPSEEK_API_KEY';
+    const keyNames: Record<string, string> = {
+      openai: 'OPENAI_API_KEY',
+      deepseek: 'DEEPSEEK_API_KEY',
+      zhipu: 'ZHIPU_API_KEY',
+      qwen: 'QWEN_API_KEY',
+      kimi: 'KIMI_API_KEY',
+    };
+    const keyName = keyNames[providerName] || 'API_KEY';
     console.error(chalk.red(`Error: ${keyName} environment variable is not set.`));
     console.error(chalk.yellow('Please set it in your environment or create a .env file.'));
     process.exit(1);
@@ -70,9 +86,18 @@ export async function startCLI(): Promise<void> {
     case 'deepseek':
       provider = new DeepSeekProvider(apiKey, model);
       break;
+    case 'zhipu':
+      provider = new ZhipuProvider(apiKey, model);
+      break;
+    case 'qwen':
+      provider = new QwenProvider(apiKey, model);
+      break;
+    case 'kimi':
+      provider = new KimiProvider(apiKey, model);
+      break;
     default:
       console.error(chalk.red(`Unknown provider: ${providerName}`));
-      console.error(chalk.yellow('Available providers: openai, deepseek'));
+      console.error(chalk.yellow('Available providers: openai, deepseek, zhipu, qwen, kimi'));
       process.exit(1);
   }
   const agent = new Agent(provider, workingDirectory);
@@ -81,6 +106,9 @@ export async function startCLI(): Promise<void> {
   console.log(chalk.gray('Provider: ' + providerName));
   console.log(chalk.gray('Working directory: ' + workingDirectory));
   console.log(chalk.gray('Model: ' + model));
+  if (isDebugMode()) {
+    console.log(chalk.yellow('Debug mode: ENABLED'));
+  }
   console.log(chalk.gray('Type your message and press Enter. Type /help for commands.\n'));
 
   const rl = readline.createInterface({
