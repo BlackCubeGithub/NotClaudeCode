@@ -3,6 +3,10 @@ import * as path from 'path';
 import { Message, Tool, ToolDefinition, ToolResult, StreamChunk, AIProvider } from '../types';
 import { getAllTools } from '../tools';
 import { debugLog } from '../utils/debug';
+import { SessionManager } from './session-manager';
+import { countMessagesTokens, countMessageTokens, estimateTokens } from '../utils/token-counter';
+import { shouldTriggerToolResultCleanup, toolResultCleanup } from './compact';
+import { shouldTriggerLayer2Compact, layer2Compact, shouldTriggerLayer3Compact, layer3Compact } from './memory';
 
 const SYSTEM_PROMPT = `You are NotClaudeCode, a powerful code assistant that helps users with software engineering tasks ,Inspired by Claude Code, developed by Blackcube for learning and research purposes.
 
@@ -60,35 +64,57 @@ export class Agent {
   private tools: Map<string, Tool>;
   private messages: Message[];
   private provider: AIProvider;
+  private sessionManager?: SessionManager;
+  private autoSave: boolean;
 
   constructor(
     provider: AIProvider,
-    private workingDirectory: string = process.cwd()
+    private workingDirectory: string = process.cwd(),
+    autoSave: boolean = true,
+    sessionManager?: SessionManager
   ) {
     this.provider = provider;
     this.tools = new Map();
-    this.messages = [];
+    this.sessionManager = sessionManager;
+    this.autoSave = autoSave;
 
     const toolList = getAllTools();
     for (const tool of toolList) {
       this.tools.set(tool.definition.name, tool);
     }
 
-    this.messages.push({
-      role: 'system',
-      content: SYSTEM_PROMPT,
-    });
+    if (sessionManager && sessionManager.hasActiveSession()) {
+      const sessionMessages = sessionManager.getMessages();
+      if (sessionMessages.length === 0) {
+        const systemMsg = {
+          role: 'system' as const,
+          content: SYSTEM_PROMPT,
+        };
+        sessionManager.addMessage(systemMsg);
+        this.messages = [systemMsg];
+      } else {
+        this.messages = sessionMessages;
+      }
+    } else {
+      this.messages = [{
+        role: 'system',
+        content: SYSTEM_PROMPT,
+      }];
+    }
   }
 
   getToolDefinitions(): ToolDefinition[] {
     return Array.from(this.tools.values()).map((t) => t.definition);
   }
 
+  getSessionManager(): SessionManager | undefined {
+    return this.sessionManager;
+  }
+
   async processUserMessage(userMessage: string): Promise<string> {
-    this.messages.push({
-      role: 'user',
-      content: userMessage,
-    });
+    const userMsg = { role: 'user' as const, content: userMessage };
+    this.messages.push(userMsg);
+    this.saveMessage(userMsg);
 
     return this.processLoop();
   }
@@ -97,10 +123,9 @@ export class Agent {
     userMessage: string,
     onToolCall?: (toolName: string, params: Record<string, unknown>) => void
   ): AsyncGenerator<StreamChunk, void, unknown> {
-    this.messages.push({
-      role: 'user',
-      content: userMessage,
-    });
+    const userMsg = { role: 'user' as const, content: userMessage };
+    this.messages.push(userMsg);
+    this.saveMessage(userMsg);
 
     yield* this.processLoopStream(onToolCall);
   }
@@ -141,11 +166,13 @@ export class Agent {
         debugLog('AGENT', 'Stream completed', { contentLength: content.length, toolCallsCount: toolCalls.length });
         
         if (toolCalls.length > 0) {
-          this.messages.push({
-            role: 'assistant',
+          const assistantMsg = {
+            role: 'assistant' as const,
             content: content || null,
             tool_calls: toolCalls,
-          });
+          };
+          this.messages.push(assistantMsg);
+          this.saveMessage(assistantMsg);
 
           for (const toolCall of toolCalls) {
             const toolName = toolCall.function.name;
@@ -153,12 +180,14 @@ export class Agent {
 
             if (!tool) {
               debugLog('ERROR', `Unknown tool: ${toolName}`);
-              this.messages.push({
-                role: 'tool',
+              const toolMsg = {
+                role: 'tool' as const,
                 tool_call_id: toolCall.id,
                 name: toolName,
                 content: JSON.stringify({ error: `Unknown tool: ${toolName}` }),
-              });
+              };
+              this.messages.push(toolMsg);
+              this.saveMessage(toolMsg);
               continue;
             }
 
@@ -181,22 +210,27 @@ export class Agent {
               outputLength: result.output?.length 
             });
 
-            this.messages.push({
-              role: 'tool',
+            const toolMsg = {
+              role: 'tool' as const,
               tool_call_id: toolCall.id,
               name: toolName,
               content: JSON.stringify(result),
-            });
+            };
+            this.messages.push(toolMsg);
+            this.saveMessage(toolMsg);
           }
 
           yield* this.processLoopStream(onToolCall);
           return;
         }
 
-        this.messages.push({
-          role: 'assistant',
+        const finalMsg = {
+          role: 'assistant' as const,
           content: content || null,
-        });
+        };
+        this.messages.push(finalMsg);
+        this.saveMessage(finalMsg);
+        this.saveSession();
 
         yield { type: 'done', finishReason: chunk.finishReason };
       }
@@ -208,23 +242,27 @@ export class Agent {
     let response = await this.provider.chat(this.messages, toolDefs);
 
     while (response.toolCalls.length > 0) {
-      this.messages.push({
-        role: 'assistant',
+      const assistantMsg = {
+        role: 'assistant' as const,
         content: response.content,
         tool_calls: response.toolCalls,
-      });
+      };
+      this.messages.push(assistantMsg);
+      this.saveMessage(assistantMsg);
 
       for (const toolCall of response.toolCalls) {
         const toolName = toolCall.function.name;
         const tool = this.tools.get(toolName);
 
         if (!tool) {
-          this.messages.push({
-            role: 'tool',
+          const toolMsg = {
+            role: 'tool' as const,
             tool_call_id: toolCall.id,
             name: toolName,
             content: JSON.stringify({ error: `Unknown tool: ${toolName}` }),
-          });
+          };
+          this.messages.push(toolMsg);
+          this.saveMessage(toolMsg);
           continue;
         }
 
@@ -237,36 +275,61 @@ export class Agent {
 
         const result = await tool.execute(params);
 
-        this.messages.push({
-          role: 'tool',
+        const toolMsg = {
+          role: 'tool' as const,
           tool_call_id: toolCall.id,
           name: toolName,
           content: JSON.stringify(result),
-        });
+        };
+        this.messages.push(toolMsg);
+        this.saveMessage(toolMsg);
       }
 
       response = await this.provider.chat(this.messages, toolDefs);
     }
 
-    this.messages.push({
-      role: 'assistant',
+    const finalMsg = {
+      role: 'assistant' as const,
       content: response.content,
-    });
+    };
+    this.messages.push(finalMsg);
+    this.saveMessage(finalMsg);
+    this.saveSession();
 
     return response.content || 'Done.';
+  }
+
+  private saveMessage(message: Message): void {
+    if (this.autoSave && this.sessionManager) {
+      this.sessionManager.appendMessageToStorage(message);
+    }
+  }
+
+  private saveSession(): void {
+    if (this.autoSave && this.sessionManager) {
+      this.sessionManager.setMessages([...this.messages]);
+      this.sessionManager.saveSession();
+    }
   }
 
   getConversationHistory(): Message[] {
     return [...this.messages];
   }
 
+  getProvider(): AIProvider {
+    return this.provider;
+  }
+
   clearHistory(): void {
-    this.messages = [
-      {
-        role: 'system',
-        content: SYSTEM_PROMPT,
-      },
-    ];
+    const systemMsg = {
+      role: 'system' as const,
+      content: SYSTEM_PROMPT,
+    };
+    this.messages = [systemMsg];
+    if (this.sessionManager) {
+      this.sessionManager.setMessages([systemMsg]);
+      this.sessionManager.saveSession();
+    }
   }
 
   getContextStats(): {
@@ -286,11 +349,6 @@ export class Agent {
       total: number;
     };
   } {
-    const countTokens = (text: string | null): number => {
-      if (!text) return 0;
-      return Math.ceil(text.length / 4);
-    };
-
     const stats = {
       system: { tokens: 0, chars: 0, percentage: 0 },
       user: { tokens: 0, chars: 0, percentage: 0 },
@@ -308,13 +366,11 @@ export class Agent {
 
     for (const msg of this.messages) {
       const content = msg.content || '';
-      const tokens = countTokens(content);
+      const tokens = countMessageTokens(msg);
       const chars = content.length;
 
       if (msg.tool_calls) {
         for (const tc of msg.tool_calls) {
-          const argsTokens = countTokens(tc.function.arguments);
-          stats[msg.role].tokens += argsTokens;
           stats[msg.role].chars += tc.function.arguments.length;
         }
       }
@@ -339,5 +395,173 @@ export class Agent {
       breakdown: stats,
       messageCount,
     };
+  }
+
+  getTokenCount(): number {
+    return countMessagesTokens(this.messages);
+  }
+
+  getContextLimit(): number {
+    if (this.sessionManager) {
+      return this.sessionManager.getContextLimit();
+    }
+    return 128000;
+  }
+
+  getContextUsagePercent(): number {
+    const limit = this.getContextLimit();
+    const current = this.getTokenCount();
+    return Math.round((current / limit) * 100);
+  }
+
+  createCheckpoint(description?: string): void {
+    if (this.sessionManager) {
+      this.sessionManager.createCheckpoint(description, 'manual');
+    }
+  }
+
+  getCheckpoints() {
+    return this.sessionManager?.getCheckpoints() || [];
+  }
+
+  async restoreCheckpoint(checkpointId: string): Promise<boolean> {
+    if (!this.sessionManager) {
+      return false;
+    }
+    const success = await this.sessionManager.restoreCheckpoint(checkpointId);
+    if (success) {
+      this.messages = this.sessionManager.getMessages();
+    }
+    return success;
+  }
+
+  setMessages(messages: Message[]): void {
+    this.messages = messages;
+    if (this.sessionManager) {
+      this.sessionManager.setMessages(messages);
+    }
+  }
+
+  checkAndAutoCompact(): { triggered: boolean; reason?: string } {
+    const contextLimit = this.getContextLimit();
+    const usagePercent = this.getContextUsagePercent() / 100;
+
+    if (usagePercent < 0.7) {
+      return { triggered: false };
+    }
+
+    if (usagePercent >= 0.7 && shouldTriggerToolResultCleanup(this.messages, contextLimit, 0.7)) {
+      const result = toolResultCleanup(this.messages, contextLimit, 0.6);
+      
+      if (result.triggered) {
+        this.messages = result.messages;
+        if (this.sessionManager) {
+          this.sessionManager.setMessages(result.messages);
+        }
+        
+        debugLog('COMPACT', `Layer 1 compact triggered`, {
+          tokensSaved: result.tokensBefore - result.tokensAfter,
+          toolResultsCleaned: result.toolResultsCleaned,
+        });
+
+        return { 
+          triggered: true, 
+          reason: `Layer 1 compact: cleaned ${result.toolResultsCleaned} tool results` 
+        };
+      }
+    }
+
+    if (usagePercent >= 0.85 && usagePercent < 0.95 && this.sessionManager) {
+      const memory = this.sessionManager.getSessionMemory();
+      const result = layer2Compact(this.messages, contextLimit, memory);
+      
+      this.messages = result.messages;
+      this.sessionManager.setMessages(result.messages);
+      this.sessionManager.setSessionMemory(result.memory);
+      
+      debugLog('COMPACT', `Layer 2 compact triggered`, {
+        tokensSaved: result.tokensSaved,
+        messagesSummarized: result.messagesSummarized,
+      });
+
+      return { 
+        triggered: true, 
+        reason: `Layer 2 compact: saved ${result.tokensSaved} tokens, summarized ${result.messagesSummarized} messages` 
+      };
+    }
+
+    return { triggered: false };
+  }
+
+  async checkAndAutoCompactAsync(): Promise<{ triggered: boolean; reason?: string }> {
+    const contextLimit = this.getContextLimit();
+    const usagePercent = this.getContextUsagePercent() / 100;
+
+    if (usagePercent < 0.7) {
+      return { triggered: false };
+    }
+
+    if (usagePercent >= 0.95) {
+      const result = await layer3Compact(this.messages, this.provider, contextLimit, 5);
+      
+      if (result.tokensSaved > 0) {
+        this.messages = result.messages;
+        if (this.sessionManager) {
+          this.sessionManager.setMessages(result.messages);
+        }
+        
+        debugLog('COMPACT', `Layer 3 compact triggered`, {
+          tokensSaved: result.tokensSaved,
+          messagesSummarized: result.messagesSummarized,
+        });
+
+        return { 
+          triggered: true, 
+          reason: `Layer 3 compact: saved ${result.tokensSaved} tokens, summarized ${result.messagesSummarized} messages` 
+        };
+      }
+    }
+
+    if (usagePercent >= 0.85 && this.sessionManager) {
+      const memory = this.sessionManager.getSessionMemory();
+      const result = layer2Compact(this.messages, contextLimit, memory);
+      
+      this.messages = result.messages;
+      this.sessionManager.setMessages(result.messages);
+      this.sessionManager.setSessionMemory(result.memory);
+      
+      debugLog('COMPACT', `Layer 2 compact triggered`, {
+        tokensSaved: result.tokensSaved,
+        messagesSummarized: result.messagesSummarized,
+      });
+
+      return { 
+        triggered: true, 
+        reason: `Layer 2 compact: saved ${result.tokensSaved} tokens, summarized ${result.messagesSummarized} messages` 
+      };
+    }
+
+    if (usagePercent >= 0.7 && shouldTriggerToolResultCleanup(this.messages, contextLimit, 0.7)) {
+      const result = toolResultCleanup(this.messages, contextLimit, 0.6);
+      
+      if (result.triggered) {
+        this.messages = result.messages;
+        if (this.sessionManager) {
+          this.sessionManager.setMessages(result.messages);
+        }
+        
+        debugLog('COMPACT', `Layer 1 compact triggered`, {
+          tokensSaved: result.tokensBefore - result.tokensAfter,
+          toolResultsCleaned: result.toolResultsCleaned,
+        });
+
+        return { 
+          triggered: true, 
+          reason: `Layer 1 compact: cleaned ${result.toolResultsCleaned} tool results` 
+        };
+      }
+    }
+
+    return { triggered: false };
   }
 }
