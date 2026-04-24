@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-04-24
+
+### Added
+- **ESLint Configuration** - Added comprehensive ESLint setup for code quality enforcement
+- **Comprehensive Test Suites** - Added 7 complete test suites covering core functionality
+  - `agent-test.ts` - Agent core functionality tests
+  - `ai-providers-test.ts` - Tests for all 5 AI providers (OpenAI, DeepSeek, Zhipu, Qwen, Kimi)
+  - `command-tools-test.ts` - Command execution tools tests
+  - `file-tools-test.ts` - File operation tools tests
+  - `other-tools-test.ts` - Other utility tools tests
+  - `search-tools-test.ts` - Search tools tests
+  - `storage-session-test.ts` - Storage and session management tests
+- **Update Documentation** - Added detailed update log for 2026-04-24 changes
+
+### Changed
+- **Code Quality Improvements**
+  - Removed unused imports across multiple modules (agent, compact, memory, storage)
+  - Removed unused variables and constants
+  - Improved error handling logic in retry mechanism
+  - Enhanced code robustness with better null checks
+- **Context Monitor Enhancements**
+  - Added provider null check for Layer 3 compression to prevent runtime errors
+  - Improved error handling in auto-compact mechanism
+- **Tool Optimizations**
+  - Removed `requires_approval` parameter from `RunCommandTool` (simplified execution flow)
+  - Cleaned up unused imports in grep, web-fetch, and other tool modules
+- **CLI Improvements**
+  - Refactored command handling with switch statement
+  - Removed unused imports from CLI module
+
+### Fixed
+- Prevented potential runtime errors in Layer 3 compression when provider is null
+- Fixed unused variable warnings across the codebase
+
+### Technical Details
+- Total changes: 24 files modified, 3428 lines added, 52 lines removed
+- Test coverage significantly improved with 7 new comprehensive test files
+- Code maintainability enhanced through systematic removal of dead code
+- ESLint integration ensures consistent code style going forward
+
 ## [0.1.1] - 2026-04-23
 
 ### Added

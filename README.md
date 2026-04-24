@@ -9,7 +9,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-green?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.1.1-orange.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-0.1.2-orange.svg)](package.json)
 
 [功能特性](#-功能特性) • [快速开始](#-快速开始) • [使用指南](#-使用指南) • [工具列表](#-支持的工具) • [API 提供商](#-支持的-ai-提供商)
 
@@ -337,6 +337,15 @@ npm run test:memory
 
 # 自动压缩测试
 npm run test:auto-compact
+
+# 运行其他测试套件（需要手动执行）
+ts-node tests/agent-test.ts              # Agent核心功能测试
+ts-node tests/ai-providers-test.ts       # AI提供商测试
+ts-node tests/command-tools-test.ts      # 命令工具测试
+ts-node tests/file-tools-test.ts         # 文件工具测试
+ts-node tests/other-tools-test.ts        # 其他工具测试
+ts-node tests/search-tools-test.ts       # 搜索工具测试
+ts-node tests/storage-session-test.ts    # 存储与会话测试
 ```
 
 ## 🔄 自动压缩机制
