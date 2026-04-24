@@ -181,4 +181,8 @@ export class OpenAIProvider implements AIProvider {
       }
     }
   }
+
+  getModel(): string {
+    return this.model;
+  }
 }

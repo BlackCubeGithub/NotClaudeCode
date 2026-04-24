@@ -10,7 +10,7 @@ import { SessionManager, Storage } from '../core';
 import { AIProvider } from '../types';
 import { setDebugMode, isDebugMode } from '../utils/debug';
 
-const PACKAGE_VERSION = '0.2.0';
+const PACKAGE_VERSION = '0.1.1';
 
 function loadEnvFile(): void {
   const envPath = path.join(process.cwd(), '.env');

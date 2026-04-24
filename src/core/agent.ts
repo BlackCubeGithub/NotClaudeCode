@@ -4,9 +4,10 @@ import { Message, Tool, ToolDefinition, ToolResult, StreamChunk, AIProvider } fr
 import { getAllTools } from '../tools';
 import { debugLog } from '../utils/debug';
 import { SessionManager } from './session-manager';
-import { countMessagesTokens, countMessageTokens, estimateTokens } from '../utils/token-counter';
+import { countMessagesTokens, countMessageTokens, estimateTokens, getModelContextLimit } from '../utils/token-counter';
 import { shouldTriggerToolResultCleanup, toolResultCleanup } from './compact';
 import { shouldTriggerLayer2Compact, layer2Compact, shouldTriggerLayer3Compact, layer3Compact } from './memory';
+import { ContextMonitor, CompactTriggerResult, createCompactNotificationStream } from './context-monitor';
 
 const SYSTEM_PROMPT = `You are NotClaudeCode, a powerful code assistant that helps users with software engineering tasks ,Inspired by Claude Code, developed by Blackcube for learning and research purposes.
 
@@ -66,6 +67,7 @@ export class Agent {
   private provider: AIProvider;
   private sessionManager?: SessionManager;
   private autoSave: boolean;
+  private contextMonitor: ContextMonitor;
 
   constructor(
     provider: AIProvider,
@@ -77,6 +79,10 @@ export class Agent {
     this.tools = new Map();
     this.sessionManager = sessionManager;
     this.autoSave = autoSave;
+
+    const model = provider.getModel ? provider.getModel() : 'default';
+    const contextLimit = getModelContextLimit(model);
+    this.contextMonitor = new ContextMonitor({ contextLimit, enableAutoCompact: true });
 
     const toolList = getAllTools();
     for (const tool of toolList) {
@@ -220,6 +226,17 @@ export class Agent {
             this.saveMessage(toolMsg);
           }
 
+          const compactCheck = this.contextMonitor.shouldTriggerCompact(this.messages);
+          if (compactCheck.shouldTrigger && compactCheck.layer >= 1) {
+            const compactResult = await this.executeAutoCompact(compactCheck.layer);
+            if (compactResult.triggered) {
+              yield {
+                type: 'content',
+                content: createCompactNotificationStream(compactResult),
+              };
+            }
+          }
+
           yield* this.processLoopStream(onToolCall);
           return;
         }
@@ -231,6 +248,17 @@ export class Agent {
         this.messages.push(finalMsg);
         this.saveMessage(finalMsg);
         this.saveSession();
+
+        const compactCheck = this.contextMonitor.shouldTriggerCompact(this.messages);
+        if (compactCheck.shouldTrigger && compactCheck.layer >= 2) {
+          const compactResult = await this.executeAutoCompact(compactCheck.layer);
+          if (compactResult.triggered) {
+            yield {
+              type: 'content',
+              content: createCompactNotificationStream(compactResult),
+            };
+          }
+        }
 
         yield { type: 'done', finishReason: chunk.finishReason };
       }
@@ -285,6 +313,11 @@ export class Agent {
         this.saveMessage(toolMsg);
       }
 
+      const compactCheck = this.contextMonitor.shouldTriggerCompact(this.messages);
+      if (compactCheck.shouldTrigger && compactCheck.layer >= 1) {
+        await this.executeAutoCompact(compactCheck.layer);
+      }
+
       response = await this.provider.chat(this.messages, toolDefs);
     }
 
@@ -295,6 +328,11 @@ export class Agent {
     this.messages.push(finalMsg);
     this.saveMessage(finalMsg);
     this.saveSession();
+
+    const compactCheck = this.contextMonitor.shouldTriggerCompact(this.messages);
+    if (compactCheck.shouldTrigger && compactCheck.layer >= 2) {
+      await this.executeAutoCompact(compactCheck.layer);
+    }
 
     return response.content || 'Done.';
   }
@@ -563,5 +601,53 @@ export class Agent {
     }
 
     return { triggered: false };
+  }
+
+  private async executeAutoCompact(layer: 0 | 1 | 2 | 3): Promise<CompactTriggerResult> {
+    if (layer === 0) {
+      return {
+        triggered: false,
+        layer: 0,
+        tokensBefore: countMessagesTokens(this.messages),
+        tokensAfter: countMessagesTokens(this.messages),
+        tokensSaved: 0,
+        reason: 'No compression needed',
+        messages: this.messages,
+      };
+    }
+
+    const existingMemory = this.sessionManager?.getSessionMemory();
+    const result = await this.contextMonitor.executeCompact(
+      this.messages,
+      layer,
+      this.provider,
+      existingMemory
+    );
+
+    if (result.triggered) {
+      this.messages = result.messages;
+      
+      if (this.sessionManager) {
+        this.sessionManager.setMessages(result.messages);
+        
+        if (result.memory) {
+          this.sessionManager.setSessionMemory(result.memory);
+        }
+        
+        this.sessionManager.saveSession();
+      }
+
+      debugLog('AUTO_COMPACT', `Auto compact executed`, {
+        layer: result.layer,
+        tokensSaved: result.tokensSaved,
+        reason: result.reason,
+      });
+    }
+
+    return result;
+  }
+
+  getContextMonitor(): ContextMonitor {
+    return this.contextMonitor;
   }
 }

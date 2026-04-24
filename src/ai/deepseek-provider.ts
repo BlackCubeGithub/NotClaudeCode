@@ -225,4 +225,8 @@ export class DeepSeekProvider implements AIProvider {
       throw error;
     }
   }
+
+  getModel(): string {
+    return this.model;
+  }
 }

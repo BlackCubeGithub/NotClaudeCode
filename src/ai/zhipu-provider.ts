@@ -225,4 +225,8 @@ export class ZhipuProvider implements AIProvider {
       throw error;
     }
   }
+
+  getModel(): string {
+    return this.model;
+  }
 }

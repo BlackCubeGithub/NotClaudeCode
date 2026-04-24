@@ -225,4 +225,8 @@ export class KimiProvider implements AIProvider {
       throw error;
     }
   }
+
+  getModel(): string {
+    return this.model;
+  }
 }

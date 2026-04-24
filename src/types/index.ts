@@ -74,6 +74,7 @@ export interface AIProvider {
     messages: Message[],
     tools: ToolDefinition[]
   ): AsyncGenerator<StreamChunk, void, unknown>;
+  getModel?(): string;
 }
 
 export * from './session';

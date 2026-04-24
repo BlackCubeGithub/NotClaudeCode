@@ -225,4 +225,8 @@ export class QwenProvider implements AIProvider {
       throw error;
     }
   }
+
+  getModel(): string {
+    return this.model;
+  }
 }

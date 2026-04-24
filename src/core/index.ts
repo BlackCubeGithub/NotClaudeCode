@@ -20,3 +20,11 @@ export {
   shouldTriggerLayer3Compact,
 } from './memory';
 export type { MemoryExtractionResult, Layer3Result } from './memory';
+export {
+  ContextMonitor,
+  createCompactNotificationStream,
+} from './context-monitor';
+export type {
+  CompactTriggerResult,
+  ContextMonitorConfig,
+} from './context-monitor';

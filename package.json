@@ -1,6 +1,6 @@
 {
   "name": "not-claude-code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Claude Code clone implementation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,7 +14,8 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "test:network": "ts-node tests/network-test.ts",
-    "test:memory": "ts-node tests/memory-system-test.ts"
+    "test:memory": "ts-node tests/memory-system-test.ts",
+    "test:auto-compact": "ts-node tests/auto-compact-test.ts"
   },
   "keywords": [
     "ai",
