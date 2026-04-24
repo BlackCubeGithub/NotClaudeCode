@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import { BaseTool } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 

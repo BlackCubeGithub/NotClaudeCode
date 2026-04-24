@@ -1,12 +1,11 @@
 import * as os from 'os';
-import * as path from 'path';
-import { Message, Tool, ToolDefinition, ToolResult, StreamChunk, AIProvider } from '../types';
+import { Message, Tool, ToolDefinition, StreamChunk, AIProvider } from '../types';
 import { getAllTools } from '../tools';
 import { debugLog } from '../utils/debug';
 import { SessionManager } from './session-manager';
-import { countMessagesTokens, countMessageTokens, estimateTokens, getModelContextLimit } from '../utils/token-counter';
+import { countMessagesTokens, countMessageTokens, getModelContextLimit } from '../utils/token-counter';
 import { shouldTriggerToolResultCleanup, toolResultCleanup } from './compact';
-import { shouldTriggerLayer2Compact, layer2Compact, shouldTriggerLayer3Compact, layer3Compact } from './memory';
+import { layer2Compact, layer3Compact } from './memory';
 import { ContextMonitor, CompactTriggerResult, createCompactNotificationStream } from './context-monitor';
 
 const SYSTEM_PROMPT = `You are NotClaudeCode, a powerful code assistant that helps users with software engineering tasks ,Inspired by Claude Code, developed by Blackcube for learning and research purposes.

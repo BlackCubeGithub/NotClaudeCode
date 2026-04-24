@@ -34,23 +34,18 @@ export class RunCommandTool extends BaseTool {
           type: 'boolean',
           description: 'Whether to wait for the command to complete.',
         },
-        requires_approval: {
-          type: 'boolean',
-          description: 'Whether the user must approve the command.',
-        },
       },
-      required: ['command', 'blocking', 'requires_approval'],
+      required: ['command', 'blocking'],
     },
   };
 
   async execute(params: Record<string, unknown>): Promise<ToolResult> {
     try {
-      this.validateRequiredParams(params, ['command', 'blocking', 'requires_approval']);
+      this.validateRequiredParams(params, ['command', 'blocking']);
 
       const command = params.command as string;
       const cwd = (params.cwd as string) || process.cwd();
       const blocking = params.blocking as boolean;
-      const requiresApproval = params.requires_approval as boolean;
 
       const commandId = uuidv4();
 

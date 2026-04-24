@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import { OpenAIProvider, DeepSeekProvider, ZhipuProvider, QwenProvider, KimiProvider } from '../ai';
-import { Agent, toolResultCleanup, shouldTriggerToolResultCleanup, getToolResultStats, estimateCompactSavings, formatMemoryForDisplay, extractSessionMemory, layer3Compact, layer2Compact } from '../core';
+import { Agent, toolResultCleanup, getToolResultStats, estimateCompactSavings, layer3Compact, layer2Compact } from '../core';
 import { SessionManager, Storage } from '../core';
 import { AIProvider } from '../types';
 import { setDebugMode, isDebugMode } from '../utils/debug';
@@ -273,7 +273,7 @@ async function handleSlashCommand(
       console.log(chalk.green('Conversation history cleared.\n'));
       return;
 
-    case 'history':
+    case 'history': {
       const history = agent.getConversationHistory();
       console.log(chalk.cyan('\n📜 Conversation History:\n'));
       history.forEach((msg, index) => {
@@ -284,8 +284,9 @@ async function handleSlashCommand(
       });
       console.log();
       return;
+    }
 
-    case 'context':
+    case 'context': {
       const stats = agent.getContextStats();
       const limit = agent.getContextLimit();
       const usagePercent = agent.getContextUsagePercent();
@@ -324,6 +325,7 @@ async function handleSlashCommand(
       console.log(chalk.gray('─'.repeat(50)));
       console.log();
       return;
+    }
 
     case 'memory':
       return handleMemoryCommand(agent, sessionManager);
@@ -418,13 +420,13 @@ async function handleSessionCommand(
       return;
     }
 
-    case 'list':
+    case 'list': {
       const sessions = sessionManager.listSessions();
       console.log(chalk.cyan('\n📁 Sessions:\n'));
       if (sessions.length === 0) {
         console.log(chalk.gray('  No sessions found.'));
       } else {
-        sessions.slice(0, 10).forEach((s, i) => {
+        sessions.slice(0, 10).forEach((s, _i) => {
           const current = s.id === sessionManager.getCurrentSessionId() ? chalk.green('●') : ' ';
           const date = new Date(s.updatedAt).toLocaleDateString();
           console.log(`  ${current} ${chalk.white(s.id.substring(0, 8))} - ${s.title || 'Untitled'}`);
@@ -436,8 +438,9 @@ async function handleSessionCommand(
       }
       console.log();
       return;
+    }
 
-    case 'switch':
+    case 'switch': {
       const sessionsToSwitch = sessionManager.listSessions();
       if (sessionsToSwitch.length === 0) {
         console.log(chalk.yellow('No sessions available.\n'));
@@ -462,8 +465,9 @@ async function handleSessionCommand(
         console.log(chalk.green(`\n✅ Switched to session: ${selectedSession.substring(0, 8)}\n`));
       }
       return;
+    }
 
-    case 'title':
+    case 'title': {
       const title = args.slice(1).join(' ');
       if (!title) {
         console.log(chalk.yellow('Usage: /session title <title>\n'));
@@ -473,9 +477,10 @@ async function handleSessionCommand(
       await sessionManager.saveSession();
       console.log(chalk.green(`\n✅ Session title set to: ${title}\n`));
       return;
+    }
 
     case undefined:
-    default:
+    default: {
       const info = sessionManager.getMetadata();
       const stats = sessionManager.getStats();
       const agentStats = agent.getContextStats();
@@ -494,6 +499,7 @@ async function handleSessionCommand(
       console.log(`  Checkpoints: ${chalk.white(stats.checkpointCount.toString())}`);
       console.log();
       return;
+    }
   }
 }
 
@@ -506,7 +512,7 @@ async function handleCheckpointCommand(
   const subCmd = args[0]?.toLowerCase();
 
   switch (subCmd) {
-    case 'list':
+    case 'list': {
       const checkpoints = sessionManager.getCheckpoints();
       console.log(chalk.cyan('\n🔖 Checkpoints:\n'));
       if (checkpoints.length === 0) {
@@ -524,6 +530,7 @@ async function handleCheckpointCommand(
       }
       console.log();
       return;
+    }
 
     case 'delete': {
       const checkpointsToDelete = sessionManager.getCheckpoints();

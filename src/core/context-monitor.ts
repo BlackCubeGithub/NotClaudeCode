@@ -1,17 +1,11 @@
 import { Message, AIProvider, SessionMemory, DEFAULT_COMPACT_CONFIG } from '../types';
 import { countMessagesTokens, getContextUsageStats } from '../utils/token-counter';
 import {
-  shouldTriggerToolResultCleanup,
   toolResultCleanup,
-  CompactResult,
 } from './compact';
 import {
-  shouldTriggerLayer2Compact,
-  shouldTriggerLayer3Compact,
   layer2Compact,
   layer3Compact,
-  MemoryExtractionResult,
-  Layer3Result,
 } from './memory';
 
 export interface CompactTriggerResult {
@@ -150,7 +144,19 @@ export class ContextMonitor {
           result = await this.executeLayer2(messages, existingMemory);
           break;
         case 3:
-          result = await this.executeLayer3(messages, provider!);
+          if (!provider) {
+            result = {
+              triggered: false,
+              layer: 0,
+              tokensBefore,
+              tokensAfter: tokensBefore,
+              tokensSaved: 0,
+              reason: 'Layer 3 requires AI provider',
+              messages,
+            };
+          } else {
+            result = await this.executeLayer3(messages, provider);
+          }
           break;
         default:
           result = {

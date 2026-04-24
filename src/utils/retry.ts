@@ -49,29 +49,32 @@ export async function fetchWithRetry(
 
       return response;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      const errorInstance = error instanceof Error ? error : new Error(String(error));
+      lastError = errorInstance;
 
-      const isAbortError = lastError.name === 'AbortError';
+      const isAbortError = errorInstance.name === 'AbortError';
       const isNetworkError =
-        lastError.message.includes('ETIMEDOUT') ||
-        lastError.message.includes('ECONNREFUSED') ||
-        lastError.message.includes('ECONNRESET') ||
-        lastError.message.includes('ENOTFOUND') ||
-        lastError.message.includes('network') ||
-        lastError.message.includes('Connection error');
+        errorInstance.message.includes('ETIMEDOUT') ||
+        errorInstance.message.includes('ECONNREFUSED') ||
+        errorInstance.message.includes('ECONNRESET') ||
+        errorInstance.message.includes('ENOTFOUND') ||
+        errorInstance.message.includes('network') ||
+        errorInstance.message.includes('Connection error');
 
-      if (attempt < opts.maxRetries && (isNetworkError || isAbortError || opts.retryOn.some(code => lastError!.message.includes(String(code))))) {
+      const shouldRetry = isNetworkError || isAbortError || opts.retryOn.some(code => errorInstance.message.includes(String(code)));
+      
+      if (attempt < opts.maxRetries && shouldRetry) {
         const delay = calculateDelay(attempt, opts.baseDelay, opts.maxDelay);
-        console.log(`[Retry ${attempt + 1}/${opts.maxRetries}] ${lastError.message}. Retrying in ${Math.round(delay)}ms...`);
+        console.log(`[Retry ${attempt + 1}/${opts.maxRetries}] ${errorInstance.message}. Retrying in ${Math.round(delay)}ms...`);
         await sleep(delay);
         continue;
       }
 
-      throw lastError;
+      throw errorInstance;
     }
   }
 
-  throw lastError || new Error('Max retries exceeded');
+  throw lastError ?? new Error('Max retries exceeded');
 }
 
 export async function fetchJsonWithRetry<T = unknown>(

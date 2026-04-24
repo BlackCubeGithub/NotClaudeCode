@@ -1,5 +1,5 @@
 import { Message, CompactConfig, DEFAULT_COMPACT_CONFIG } from '../types';
-import { countMessagesTokens, getToolResultCount } from '../utils/token-counter';
+import { countMessagesTokens } from '../utils/token-counter';
 
 export interface CompactResult {
   messages: Message[];

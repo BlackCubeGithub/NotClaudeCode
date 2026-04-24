@@ -73,6 +73,7 @@ export class TodoManager {
         this.todos.set(todo.id, todo);
       }
     } catch {
+      // Ignore JSON parse errors
     }
   }
 }

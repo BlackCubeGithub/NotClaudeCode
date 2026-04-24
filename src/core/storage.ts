@@ -15,7 +15,6 @@ import {
 const STORAGE_DIR = '.notclaudecode';
 const SESSIONS_DIR = 'sessions';
 const INDEX_FILE = 'index.json';
-const CONFIG_FILE = 'config.json';
 
 export class Storage {
   private storagePath: string;

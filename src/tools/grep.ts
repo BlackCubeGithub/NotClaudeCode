@@ -1,6 +1,5 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import * as fs from 'fs';
 import { BaseTool } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 
@@ -63,7 +62,7 @@ export class GrepTool extends BaseTool {
       command += ` -r "${pattern}" "${searchPath}"`;
 
       try {
-        const { stdout, stderr } = await execAsync(command, {
+        const { stdout } = await execAsync(command, {
           maxBuffer: 1024 * 1024 * 10,
         });
 

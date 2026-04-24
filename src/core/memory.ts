@@ -1,4 +1,4 @@
-import { Message, SessionMemory, DEFAULT_SESSION_MEMORY, AIProvider, ToolDefinition } from '../types';
+import { Message, SessionMemory, AIProvider } from '../types';
 import { countMessagesTokens } from '../utils/token-counter';
 
 export interface MemoryExtractionResult {

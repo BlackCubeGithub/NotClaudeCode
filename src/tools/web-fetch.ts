@@ -25,9 +25,8 @@ export class WebFetchTool extends BaseTool {
 
       const url = params.url as string;
 
-      let parsedUrl: URL;
       try {
-        parsedUrl = new URL(url);
+        new URL(url);
       } catch {
         return this.error(`Invalid URL: ${url}`);
       }

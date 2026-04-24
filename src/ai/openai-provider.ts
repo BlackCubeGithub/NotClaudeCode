@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { AIProvider, AIResponse, Message, ToolDefinition, ToolCall, StreamChunk } from '../types';
+import { AIProvider, AIResponse, Message, ToolDefinition, StreamChunk } from '../types';
 
 export class OpenAIProvider implements AIProvider {
   private client: OpenAI;

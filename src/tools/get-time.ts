@@ -58,7 +58,7 @@ export class GetTimeTool extends BaseTool {
           break;
 
         case 'full':
-        default:
+        default: {
           const lines: string[] = [];
           lines.push(`📅 Date: ${year}-${month}-${day}`);
           lines.push(`🕐 Time: ${hours}:${minutes}:${seconds}`);
@@ -77,6 +77,7 @@ export class GetTimeTool extends BaseTool {
           
           result = lines.join('\n');
           break;
+        }
       }
 
       return this.success(result);
