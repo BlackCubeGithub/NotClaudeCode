@@ -10,7 +10,16 @@ import { SessionManager, Storage } from '../core';
 import { AIProvider } from '../types';
 import { setDebugMode, isDebugMode } from '../utils/debug';
 
-const PACKAGE_VERSION = '0.1.1';
+function getPackageVersion(): string {
+  try {
+    const packageJsonPath = path.join(__dirname, '..', 'package.json');
+    const content = fs.readFileSync(packageJsonPath, 'utf-8');
+    const pkg = JSON.parse(content);
+    return pkg.version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 
 function loadEnvFile(): void {
   const envPath = path.join(process.cwd(), '.env');
@@ -37,7 +46,7 @@ export async function startCLI(): Promise<void> {
   program
     .name('ncc')
     .description('NotClaudeCode - A Claude Code clone')
-    .version(PACKAGE_VERSION)
+    .version(getPackageVersion())
     .option('-d, --directory <path>', 'Working directory', process.cwd())
     .option('-p, --provider <provider>', 'AI provider to use (openai, deepseek, zhipu, qwen, kimi)', 'deepseek')
     .option('-m, --model <model>', 'AI model to use')
@@ -152,7 +161,7 @@ export async function startCLI(): Promise<void> {
   const agent = new Agent(provider, workingDirectory, true, sessionManager);
 
   const metadata = sessionManager.getMetadata();
-  console.log(chalk.cyan.bold('\n🚀 NotClaudeCode v' + PACKAGE_VERSION));
+  console.log(chalk.cyan.bold('\n🚀 NotClaudeCode v' + getPackageVersion()));
   console.log(chalk.gray('Provider: ' + providerName));
   console.log(chalk.gray('Working directory: ' + workingDirectory));
   console.log(chalk.gray('Model: ' + model));
@@ -831,7 +840,7 @@ async function handleSkillCommand(
   }
 
   if (subCmd === 'run') {
-    const skillName = args[1];
+    const skillName = args.slice(1).join(' ');
     if (!skillName) {
       console.log(chalk.yellow('Usage: /skill run <skill-name>\n'));
       return;
@@ -865,7 +874,7 @@ async function handleSkillCommand(
     }
 
     try {
-      const result = await skillManager.executeSkill(skillName, variables);
+      const result = await skillManager.executeSkill(skill.name, variables);
       
       if (result.success) {
         console.log(chalk.green('\n✅ Skill executed successfully!'));
@@ -889,34 +898,66 @@ async function handleSkillCommand(
   }
 
   const skill = skillManager.getSkill(subCmd);
-  if (skill) {
-    console.log(chalk.cyan(`\n🎯 Skill: ${skill.name}\n`));
-    console.log(chalk.white('Description:'));
-    console.log(chalk.gray(`  ${skill.description}`));
-    console.log();
-    console.log(chalk.white('Source:'), chalk.gray(skill.source));
-    if (skill.trigger?.command) {
-      console.log(chalk.white('Command:'), chalk.gray(skill.trigger.command));
-    }
-    if (skill.trigger?.filePattern) {
-      console.log(chalk.white('File Pattern:'), chalk.gray(skill.trigger.filePattern));
-    }
-    if (skill.variables && skill.variables.length > 0) {
-      console.log(chalk.white('\nVariables:'));
-      for (const v of skill.variables) {
-        const req = v.required ? chalk.red('*') : '';
-        console.log(`  ${chalk.green(v.name)}${req}: ${chalk.gray(v.description || 'No description')}`);
+  if (!skill) {
+    const skillNameWithSpaces = args.join(' ');
+    if (skillNameWithSpaces) {
+      const matched = skillManager.getSkill(skillNameWithSpaces);
+      if (matched) {
+        console.log(chalk.cyan(`\n🎯 Skill: ${matched.name}\n`));
+        console.log(chalk.white('Description:'));
+        console.log(chalk.gray(`  ${matched.description}`));
+        console.log();
+        console.log(chalk.white('Source:'), chalk.gray(matched.source));
+        if (matched.trigger?.command) {
+          console.log(chalk.white('Command:'), chalk.gray(matched.trigger.command));
+        }
+        if (matched.trigger?.filePattern) {
+          console.log(chalk.white('File Pattern:'), chalk.gray(matched.trigger.filePattern));
+        }
+        if (matched.variables && matched.variables.length > 0) {
+          console.log(chalk.white('\nVariables:'));
+          for (const v of matched.variables) {
+            const req = v.required ? chalk.red('*') : '';
+            console.log(`  ${chalk.green(v.name)}${req}: ${chalk.gray(v.description || 'No description')}`);
+          }
+        }
+        console.log(chalk.white('\nSteps:'));
+        matched.steps.forEach((step, i) => {
+          const desc = step.description || step.prompt || step.tool || 'Unknown step';
+          console.log(`  ${i + 1}. ${chalk.gray(`[${step.type}]`)} ${desc.substring(0, 60)}${desc.length > 60 ? '...' : ''}`);
+        });
+        console.log();
+        return;
       }
     }
-    console.log(chalk.white('\nSteps:'));
-    skill.steps.forEach((step, i) => {
-      const desc = step.description || step.prompt || step.tool || 'Unknown step';
-      console.log(`  ${i + 1}. ${chalk.gray(`[${step.type}]`)} ${desc.substring(0, 60)}${desc.length > 60 ? '...' : ''}`);
-    });
-    console.log();
+
+    console.log(chalk.yellow(`Unknown skill: ${subCmd}`));
+    console.log(chalk.gray('Use /skill to list available skills.\n'));
     return;
   }
 
-  console.log(chalk.yellow(`Unknown skill: ${subCmd}`));
-  console.log(chalk.gray('Use /skill to list available skills.\n'));
+  console.log(chalk.cyan(`\n🎯 Skill: ${skill.name}\n`));
+  console.log(chalk.white('Description:'));
+  console.log(chalk.gray(`  ${skill.description}`));
+  console.log();
+  console.log(chalk.white('Source:'), chalk.gray(skill.source));
+  if (skill.trigger?.command) {
+    console.log(chalk.white('Command:'), chalk.gray(skill.trigger.command));
+  }
+  if (skill.trigger?.filePattern) {
+    console.log(chalk.white('File Pattern:'), chalk.gray(skill.trigger.filePattern));
+  }
+  if (skill.variables && skill.variables.length > 0) {
+    console.log(chalk.white('\nVariables:'));
+    for (const v of skill.variables) {
+      const req = v.required ? chalk.red('*') : '';
+      console.log(`  ${chalk.green(v.name)}${req}: ${chalk.gray(v.description || 'No description')}`);
+    }
+  }
+  console.log(chalk.white('\nSteps:'));
+  skill.steps.forEach((step, i) => {
+    const desc = step.description || step.prompt || step.tool || 'Unknown step';
+    console.log(`  ${i + 1}. ${chalk.gray(`[${step.type}]`)} ${desc.substring(0, 60)}${desc.length > 60 ? '...' : ''}`);
+  });
+  console.log();
 }

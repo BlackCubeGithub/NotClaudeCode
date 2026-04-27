@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Skill, SkillStep, SkillTrigger, SkillVariable } from '../../types/skill';
+import { Skill, SkillStep, SkillVariable } from '../../types/skill';
 
 export class SkillParser {
   parseMarkdown(content: string, filePath: string, source: 'built-in' | 'project' | 'user'): Skill {
@@ -14,7 +14,6 @@ export class SkillParser {
     };
 
     let currentSection = '';
-    let currentStepIndex = -1;
     let stepContent: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {

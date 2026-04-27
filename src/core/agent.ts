@@ -27,6 +27,15 @@ You have access to a set of tools you can use to accomplish tasks:
 - WebFetch: Fetch and convert web page content to markdown
 - GetTime: Get the current date and time
 - Skill: Execute specialized skills for complex workflows
+- GitStatus: Shows the current status of the git repository
+- GitCommit: Creates a new git commit with a message
+- GitPush: Pushes the current branch to a remote repository
+- GitPull: Pulls changes from a remote repository
+- GitDiff: Shows changes between commits or working tree files
+- GitBranch: Lists, creates, renames, or deletes branches
+- GitLog: Shows the commit history
+- GitMerge: Merges a branch into the current branch
+- GitStash: Stashes uncommitted changes temporarily
 
 When working with files:
 - Always use absolute paths

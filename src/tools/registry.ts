@@ -13,6 +13,15 @@ import { WebSearchTool } from './web-search';
 import { WebFetchTool } from './web-fetch';
 import { GetTimeTool } from './get-time';
 import { SkillTool } from './skill';
+import { GitStatusTool } from './git/git-status';
+import { GitCommitTool } from './git/git-commit';
+import { GitPushTool } from './git/git-push';
+import { GitPullTool } from './git/git-pull';
+import { GitDiffTool } from './git/git-diff';
+import { GitBranchTool } from './git/git-branch';
+import { GitLogTool } from './git/git-log';
+import { GitMergeTool } from './git/git-merge';
+import { GitStashTool } from './git/git-stash';
 
 export function getAllTools(): Tool[] {
   return [
@@ -30,5 +39,14 @@ export function getAllTools(): Tool[] {
     new WebFetchTool(),
     new GetTimeTool(),
     new SkillTool(),
+    new GitStatusTool(),
+    new GitCommitTool(),
+    new GitPushTool(),
+    new GitPullTool(),
+    new GitDiffTool(),
+    new GitBranchTool(),
+    new GitLogTool(),
+    new GitMergeTool(),
+    new GitStashTool(),
   ];
 }

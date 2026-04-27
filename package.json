@@ -25,25 +25,26 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "openai": "^4.28.0",
-    "commander": "^12.0.0",
     "chalk": "^4.1.2",
-    "ora": "^5.4.1",
+    "commander": "^12.0.0",
+    "glob": "^10.3.10",
     "inquirer": "^8.2.6",
     "marked": "^5.0.0",
     "marked-terminal": "^5.2.0",
-    "glob": "^10.3.10",
+    "openai": "^4.28.0",
+    "ora": "^5.4.1",
+    "simple-git": "^3.22.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
     "@types/inquirer": "^8.2.10",
+    "@types/node": "^20.11.0",
     "@types/uuid": "^9.0.0",
-    "typescript": "^5.3.0",
-    "ts-node": "^10.9.2",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
-    "eslint": "^8.56.0"
+    "eslint": "^8.56.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
   },
   "engines": {
     "node": ">=18.0.0"
