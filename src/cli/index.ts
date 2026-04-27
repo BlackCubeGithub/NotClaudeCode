@@ -260,6 +260,10 @@ async function handleSlashCommand(
       console.log('    /session switch    - Switch to another session');
       console.log('    /session title <n> - Set session title');
       console.log('    /session delete    - Delete a session\n');
+      console.log(chalk.white('  Skills:'));
+      console.log('    /skill             - List all available skills');
+      console.log('    /skill <name>      - Show skill details');
+      console.log('    /skill run <name>  - Execute a skill\n');
       console.log(chalk.white('  Checkpoint:'));
       console.log('    /checkpoint        - Create a checkpoint');
       console.log('    /checkpoint -n <name> - Create named checkpoint');
@@ -336,6 +340,11 @@ async function handleSlashCommand(
 
     case 'session':
       await handleSessionCommand(args, agent, sessionManager, rl);
+      return;
+
+    case 'skill':
+    case 'skills':
+      await handleSkillCommand(args, agent, rl);
       return;
 
     case 'checkpoint':
@@ -773,4 +782,141 @@ async function handleCompactCommand(
     }
     return;
   }
+}
+
+async function handleSkillCommand(
+  args: string[],
+  agent: Agent,
+  rl: readline.Interface
+): Promise<void> {
+  const skillManager = agent.getSkillManager();
+  const subCmd = args[0]?.toLowerCase();
+
+  if (!subCmd || subCmd === 'list') {
+    const skills = skillManager.getAllSkills();
+    console.log(chalk.cyan('\n🎯 Available Skills:\n'));
+    
+    if (skills.length === 0) {
+      console.log(chalk.gray('  No skills available.'));
+      console.log(chalk.gray('\n  Skills can be added by:'));
+      console.log(chalk.gray('  - Creating SKILL.md in your project root'));
+      console.log(chalk.gray('  - Adding .claude/skills/*.md files'));
+      console.log(chalk.gray('  - Adding skills to ~/.notclaude/skills/\n'));
+      return;
+    }
+
+    const grouped: Record<string, typeof skills> = {
+      'built-in': [],
+      'project': [],
+      'user': [],
+    };
+
+    for (const skill of skills) {
+      grouped[skill.source].push(skill);
+    }
+
+    for (const [source, sourceSkills] of Object.entries(grouped)) {
+      if (sourceSkills.length === 0) continue;
+      
+      console.log(chalk.white(`  ${source.charAt(0).toUpperCase() + source.slice(1)}:`));
+      for (const skill of sourceSkills) {
+        const desc = skill.description.split('\n')[0].substring(0, 50);
+        const cmd = skill.trigger?.command || '';
+        console.log(`    ${chalk.green(skill.name)} ${cmd ? chalk.gray(`(${cmd})`) : ''}`);
+        console.log(`      ${chalk.gray(desc)}${desc.length >= 50 ? '...' : ''}`);
+      }
+      console.log();
+    }
+    return;
+  }
+
+  if (subCmd === 'run') {
+    const skillName = args[1];
+    if (!skillName) {
+      console.log(chalk.yellow('Usage: /skill run <skill-name>\n'));
+      return;
+    }
+
+    const skill = skillManager.getSkill(skillName);
+    if (!skill) {
+      console.log(chalk.red(`Skill not found: ${skillName}\n`));
+      return;
+    }
+
+    console.log(chalk.cyan(`\n🎯 Executing skill: ${skill.name}\n`));
+    console.log(chalk.gray(`Description: ${skill.description.split('\n')[0]}`));
+    console.log(chalk.gray(`Steps: ${skill.steps.length}\n`));
+
+    const variables: Record<string, string> = {};
+    if (skill.variables && skill.variables.length > 0) {
+      rl.pause();
+      for (const variable of skill.variables) {
+        const { value } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'value',
+            message: `${variable.description || variable.name}:`,
+            default: variable.default,
+          },
+        ]);
+        variables[variable.name] = value;
+      }
+      rl.resume();
+    }
+
+    try {
+      const result = await skillManager.executeSkill(skillName, variables);
+      
+      if (result.success) {
+        console.log(chalk.green('\n✅ Skill executed successfully!'));
+        console.log(chalk.white(`Steps completed: ${result.stepsExecuted}/${skill.steps.length}`));
+        if (result.output) {
+          console.log(chalk.gray('\nOutput:'));
+          console.log(result.output);
+        }
+      } else {
+        console.log(chalk.red('\n❌ Skill execution failed'));
+        console.log(chalk.white(`Steps completed: ${result.stepsExecuted}/${skill.steps.length}`));
+        for (const error of result.errors) {
+          console.log(chalk.red(`  Step ${error.step}: ${error.error}`));
+        }
+      }
+    } catch (error) {
+      console.log(chalk.red(`\nError: ${error instanceof Error ? error.message : String(error)}`));
+    }
+    console.log();
+    return;
+  }
+
+  const skill = skillManager.getSkill(subCmd);
+  if (skill) {
+    console.log(chalk.cyan(`\n🎯 Skill: ${skill.name}\n`));
+    console.log(chalk.white('Description:'));
+    console.log(chalk.gray(`  ${skill.description}`));
+    console.log();
+    console.log(chalk.white('Source:'), chalk.gray(skill.source));
+    if (skill.trigger?.command) {
+      console.log(chalk.white('Command:'), chalk.gray(skill.trigger.command));
+    }
+    if (skill.trigger?.filePattern) {
+      console.log(chalk.white('File Pattern:'), chalk.gray(skill.trigger.filePattern));
+    }
+    if (skill.variables && skill.variables.length > 0) {
+      console.log(chalk.white('\nVariables:'));
+      for (const v of skill.variables) {
+        const req = v.required ? chalk.red('*') : '';
+        console.log(`  ${chalk.green(v.name)}${req}: ${chalk.gray(v.description || 'No description')}`);
+      }
+    }
+    console.log(chalk.white('\nSteps:'));
+    skill.steps.forEach((step, i) => {
+      const desc = step.description || step.prompt || step.tool || 'Unknown step';
+      console.log(`  ${i + 1}. ${chalk.gray(`[${step.type}]`)} ${desc.substring(0, 60)}${desc.length > 60 ? '...' : ''}`);
+    });
+    console.log();
+    return;
+  }
+
+  console.log(chalk.yellow(`Unknown skill: ${subCmd}`));
+  console.log(chalk.gray('Use /skill to list available skills.\n'));
 }

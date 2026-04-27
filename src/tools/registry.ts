@@ -12,6 +12,7 @@ import { TodoWriteTool } from './todo-write';
 import { WebSearchTool } from './web-search';
 import { WebFetchTool } from './web-fetch';
 import { GetTimeTool } from './get-time';
+import { SkillTool } from './skill';
 
 export function getAllTools(): Tool[] {
   return [
@@ -28,5 +29,6 @@ export function getAllTools(): Tool[] {
     new WebSearchTool(),
     new WebFetchTool(),
     new GetTimeTool(),
+    new SkillTool(),
   ];
 }

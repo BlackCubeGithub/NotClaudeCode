@@ -13,4 +13,5 @@ export { TodoManager } from './todo-manager';
 export { WebSearchTool } from './web-search';
 export { WebFetchTool } from './web-fetch';
 export { GetTimeTool } from './get-time';
+export { SkillTool } from './skill';
 export { getAllTools } from './registry';

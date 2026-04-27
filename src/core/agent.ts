@@ -1,12 +1,14 @@
 import * as os from 'os';
 import { Message, Tool, ToolDefinition, StreamChunk, AIProvider } from '../types';
 import { getAllTools } from '../tools';
+import { SkillTool } from '../tools/skill';
 import { debugLog } from '../utils/debug';
 import { SessionManager } from './session-manager';
 import { countMessagesTokens, countMessageTokens, getModelContextLimit } from '../utils/token-counter';
 import { shouldTriggerToolResultCleanup, toolResultCleanup } from './compact';
 import { layer2Compact, layer3Compact } from './memory';
 import { ContextMonitor, CompactTriggerResult, createCompactNotificationStream } from './context-monitor';
+import { SkillManager } from './skills/skill-manager';
 
 const SYSTEM_PROMPT = `You are NotClaudeCode, a powerful code assistant that helps users with software engineering tasks ,Inspired by Claude Code, developed by Blackcube for learning and research purposes.
 
@@ -24,6 +26,7 @@ You have access to a set of tools you can use to accomplish tasks:
 - WebSearch: Search the internet using Tavily AI
 - WebFetch: Fetch and convert web page content to markdown
 - GetTime: Get the current date and time
+- Skill: Execute specialized skills for complex workflows
 
 When working with files:
 - Always use absolute paths
@@ -53,6 +56,12 @@ When using GetTime:
 - Use this tool when you need to know the current date or time
 - Especially important before WebSearch for time-sensitive queries like news, weather, stock prices
 
+When using Skill:
+- Skills provide specialized capabilities and domain knowledge
+- Use "list" action to discover available skills
+- Invoke skills immediately when relevant to the task
+- Skills can automate complex multi-step workflows
+
 Current environment:
 - OS: ${os.type()} ${os.release()}
 - Working Directory: ${process.cwd()}
@@ -67,6 +76,7 @@ export class Agent {
   private sessionManager?: SessionManager;
   private autoSave: boolean;
   private contextMonitor: ContextMonitor;
+  private skillManager: SkillManager;
 
   constructor(
     provider: AIProvider,
@@ -86,6 +96,14 @@ export class Agent {
     const toolList = getAllTools();
     for (const tool of toolList) {
       this.tools.set(tool.definition.name, tool);
+    }
+
+    this.skillManager = new SkillManager(this.tools, this.workingDirectory);
+    this.skillManager.loadAllSkills();
+
+    const skillTool = this.tools.get('Skill') as SkillTool | undefined;
+    if (skillTool) {
+      skillTool.setSkillManager(this.skillManager);
     }
 
     if (sessionManager && sessionManager.hasActiveSession()) {
@@ -648,5 +666,9 @@ export class Agent {
 
   getContextMonitor(): ContextMonitor {
     return this.contextMonitor;
+  }
+
+  getSkillManager(): SkillManager {
+    return this.skillManager;
   }
 }

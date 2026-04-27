@@ -28,3 +28,5 @@ export type {
   CompactTriggerResult,
   ContextMonitorConfig,
 } from './context-monitor';
+export { SkillParser, SkillManager } from './skills';
+export type { Skill, SkillStep, SkillTrigger, SkillVariable, SkillExecutionContext, SkillExecutionResult } from '../types/skill';

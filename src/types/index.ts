@@ -78,3 +78,4 @@ export interface AIProvider {
 }
 
 export * from './session';
+export * from './skill';
