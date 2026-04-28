@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 
 export class LSTool extends BaseTool {
@@ -56,6 +56,9 @@ export class LSTool extends BaseTool {
 
       return this.success(items.join('\n') || '(empty directory)');
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error listing directory: ${error instanceof Error ? error.message : String(error)}`
       );

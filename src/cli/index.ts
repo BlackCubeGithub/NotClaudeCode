@@ -7,7 +7,7 @@ import inquirer from 'inquirer';
 import { OpenAIProvider, DeepSeekProvider, ZhipuProvider, QwenProvider, KimiProvider } from '../ai';
 import { Agent, toolResultCleanup, getToolResultStats, estimateCompactSavings, layer3Compact, layer2Compact } from '../core';
 import { SessionManager, Storage } from '../core';
-import { AIProvider } from '../types';
+import { AIProvider, DangerousToolCallback } from '../types';
 import { setDebugMode, isDebugMode } from '../utils/debug';
 
 function getPackageVersion(): string {
@@ -204,12 +204,30 @@ export async function startCLI(): Promise<void> {
       console.log(chalk.blue('\n🤖 Assistant:'));
 
       try {
+        const dangerousToolCallback: DangerousToolCallback = async ({ toolName, params, reason }) => {
+          console.log(chalk.red(`\n⚠️  DANGEROUS OPERATION DETECTED\n`));
+          console.log(chalk.yellow(`Tool: ${toolName}`));
+          console.log(chalk.yellow(`Reason: ${reason}`));
+          console.log(chalk.gray(`Parameters: ${JSON.stringify(params, null, 2)}`));
+          console.log();
+
+          const { confirm } = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'confirm',
+              message: 'Do you want to proceed?',
+              default: false,
+            },
+          ]);
+          return confirm;
+        };
+
         const stream = agent.processUserMessageStream(trimmed, (toolName, params) => {
           console.log(chalk.yellow(`\n🔧 Calling tool: ${toolName}`));
           if (Object.keys(params).length > 0) {
             console.log(chalk.gray(`   Parameters: ${JSON.stringify(params, null, 2).substring(0, 200)}...`));
           }
-        });
+        }, dangerousToolCallback);
 
         process.stdout.write(chalk.white(''));
         

@@ -1,4 +1,4 @@
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 import { fetchTextWithRetry } from '../utils/retry';
 
@@ -48,12 +48,15 @@ export class WebFetchTool extends BaseTool {
       const markdown = this.htmlToMarkdown(html);
 
       const maxLength = 10000;
-      const truncated = markdown.length > maxLength 
-        ? markdown.substring(0, maxLength) + '\n\n...(content truncated)' 
+      const truncated = markdown.length > maxLength
+        ? markdown.substring(0, maxLength) + '\n\n...(content truncated)'
         : markdown;
 
       return this.success(truncated);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`
       );

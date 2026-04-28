@@ -1,6 +1,6 @@
 import { spawn, ChildProcess } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 
 interface RunningCommand {
@@ -106,6 +106,9 @@ export class RunCommandTool extends BaseTool {
         }
       });
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error running command: ${error instanceof Error ? error.message : String(error)}`
       );

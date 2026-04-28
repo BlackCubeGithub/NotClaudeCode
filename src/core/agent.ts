@@ -1,5 +1,5 @@
 import * as os from 'os';
-import { Message, Tool, ToolDefinition, StreamChunk, AIProvider } from '../types';
+import { Message, Tool, ToolDefinition, StreamChunk, AIProvider, DangerousToolCallback, DangerousToolInfo, ToolResult } from '../types';
 import { getAllTools } from '../tools';
 import { SkillTool } from '../tools/skill';
 import { debugLog } from '../utils/debug';
@@ -9,6 +9,7 @@ import { shouldTriggerToolResultCleanup, toolResultCleanup } from './compact';
 import { layer2Compact, layer3Compact } from './memory';
 import { ContextMonitor, CompactTriggerResult, createCompactNotificationStream } from './context-monitor';
 import { SkillManager } from './skills/skill-manager';
+import { ConfigManager } from './config-manager';
 
 const SYSTEM_PROMPT = `You are NotClaudeCode, a powerful code assistant that helps users with software engineering tasks ,Inspired by Claude Code, developed by Blackcube for learning and research purposes.
 
@@ -86,17 +87,28 @@ export class Agent {
   private autoSave: boolean;
   private contextMonitor: ContextMonitor;
   private skillManager: SkillManager;
+  private dangerousToolCallback?: DangerousToolCallback;
+  private configManager: ConfigManager;
+  private beforeToolCallbacks: ((toolName: string, params: Record<string, unknown>) => Promise<{ allowed: boolean; result?: ToolResult }>)[];
 
   constructor(
     provider: AIProvider,
     private workingDirectory: string = process.cwd(),
     autoSave: boolean = true,
-    sessionManager?: SessionManager
+    sessionManager?: SessionManager,
+    dangerousToolCallback?: DangerousToolCallback,
+    configManager?: ConfigManager
   ) {
     this.provider = provider;
     this.tools = new Map();
     this.sessionManager = sessionManager;
     this.autoSave = autoSave;
+    this.dangerousToolCallback = dangerousToolCallback;
+    this.beforeToolCallbacks = [];
+
+    // 初始化配置管理器
+    this.configManager = configManager || new ConfigManager(workingDirectory);
+    this.configManager.load();
 
     const model = provider.getModel ? provider.getModel() : 'default';
     const contextLimit = getModelContextLimit(model);
@@ -115,28 +127,66 @@ export class Agent {
       skillTool.setSkillManager(this.skillManager);
     }
 
+    // 构建 system prompt（含项目配置）
+    const projectConfig = this.configManager.toSystemPrompt();
+    const fullSystemPrompt = projectConfig
+      ? `${SYSTEM_PROMPT}\n\n---\n\n## Project Configuration\n\n${projectConfig}\n\n---\n`
+      : SYSTEM_PROMPT;
+
     if (sessionManager && sessionManager.hasActiveSession()) {
       const sessionMessages = sessionManager.getMessages();
       if (sessionMessages.length === 0) {
-        const systemMsg = {
-          role: 'system' as const,
-          content: SYSTEM_PROMPT,
-        };
+        const systemMsg = { role: 'system' as const, content: fullSystemPrompt };
         sessionManager.addMessage(systemMsg);
         this.messages = [systemMsg];
       } else {
         this.messages = sessionMessages;
       }
     } else {
-      this.messages = [{
-        role: 'system',
-        content: SYSTEM_PROMPT,
-      }];
+      this.messages = [{ role: 'system' as const, content: fullSystemPrompt }];
     }
+  }
+
+  getConfigManager(): ConfigManager {
+    return this.configManager;
+  }
+
+  addBeforeToolCallback(
+    callback: (toolName: string, params: Record<string, unknown>) => Promise<{ allowed: boolean; result?: ToolResult }>
+  ): void {
+    this.beforeToolCallbacks.push(callback);
   }
 
   getToolDefinitions(): ToolDefinition[] {
     return Array.from(this.tools.values()).map((t) => t.definition);
+  }
+
+  private isDangerousTool(toolName: string, params: Record<string, unknown>): DangerousToolInfo | null {
+    if (toolName === 'GitPush' && params['force'] === true) {
+      return { toolName, params, reason: 'Force push can overwrite remote history and cause permanent data loss.' };
+    }
+    return null;
+  }
+
+  private async executeDangerousToolCheck(
+    toolName: string,
+    params: Record<string, unknown>,
+    dangerousCallback?: DangerousToolCallback
+  ): Promise<{ allowed: boolean; result?: ToolResult }> {
+    const dangerous = this.isDangerousTool(toolName, params);
+    if (!dangerous) return { allowed: true };
+
+    const callback = dangerousCallback || this.dangerousToolCallback;
+    if (!callback) return { allowed: true };
+
+    const approved = await callback(dangerous);
+    if (!approved) {
+      return {
+        allowed: false,
+        result: { success: false, error: 'Operation cancelled by user.' },
+      };
+    }
+    return { allowed: true };
   }
 
   getSessionManager(): SessionManager | undefined {
@@ -153,17 +203,19 @@ export class Agent {
 
   async *processUserMessageStream(
     userMessage: string,
-    onToolCall?: (toolName: string, params: Record<string, unknown>) => void
+    onToolCall?: (toolName: string, params: Record<string, unknown>) => void,
+    dangerousToolCallback?: DangerousToolCallback
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const userMsg = { role: 'user' as const, content: userMessage };
     this.messages.push(userMsg);
     this.saveMessage(userMsg);
 
-    yield* this.processLoopStream(onToolCall);
+    yield* this.processLoopStream(onToolCall, dangerousToolCallback);
   }
 
   private async *processLoopStream(
-    onToolCall?: (toolName: string, params: Record<string, unknown>) => void
+    onToolCall?: (toolName: string, params: Record<string, unknown>) => void,
+    dangerousToolCallback?: DangerousToolCallback
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const toolDefs = this.getToolDefinitions();
     debugLog('AGENT', 'Starting stream request', { messageCount: this.messages.length });
@@ -236,6 +288,25 @@ export class Agent {
               onToolCall(toolName, params);
             }
 
+            const dangerousCallback = dangerousToolCallback || this.dangerousToolCallback;
+            if (dangerousCallback) {
+              const dangerous = this.isDangerousTool(toolName, params);
+              if (dangerous) {
+                const approved = await dangerousCallback(dangerous);
+                if (!approved) {
+                  const toolMsg = {
+                    role: 'tool' as const,
+                    tool_call_id: toolCall.id,
+                    name: toolName,
+                    content: JSON.stringify({ success: false, error: 'Operation cancelled by user.' }),
+                  };
+                  this.messages.push(toolMsg);
+                  this.saveMessage(toolMsg);
+                  continue;
+                }
+              }
+            }
+
             const result = await tool.execute(params);
             debugLog('TOOL_RESULT', `Tool result for ${toolName}`, { 
               success: result.success,
@@ -263,7 +334,7 @@ export class Agent {
             }
           }
 
-          yield* this.processLoopStream(onToolCall);
+          yield* this.processLoopStream(onToolCall, dangerousToolCallback);
           return;
         }
 

@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 
 export class EditTool extends BaseTool {
@@ -50,6 +50,9 @@ export class EditTool extends BaseTool {
 
       return this.success(`Successfully edited ${filePath}`);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error editing file: ${error instanceof Error ? error.message : String(error)}`
       );

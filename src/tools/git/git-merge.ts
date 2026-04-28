@@ -1,9 +1,5 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import { BaseTool } from '../base';
-import { getToolDefinition } from './base';
-
-const execFileAsync = promisify(execFile);
+import { BaseTool, ValidationError } from '../base';
+import { getToolDefinition, runGitCommand } from './base';
 
 export class GitMergeTool extends BaseTool {
   definition = getToolDefinition(
@@ -31,37 +27,43 @@ export class GitMergeTool extends BaseTool {
   );
 
   async execute(params: Record<string, unknown>): Promise<{ success: boolean; output?: string; error?: string }> {
-    this.validateRequiredParams(params, ['branch']);
-
-    const cwd = (params.cwd as string) || process.cwd();
-    const branch = (params.branch as string) || '';
-    const noFastForward = (params.noFastForward as boolean) || false;
-    const squash = (params.squash as boolean) || false;
-
-    if (!branch) {
-      return this.error('Branch name is required for merge.');
-    }
-
-    const args = ['merge'];
-    if (noFastForward) {
-      args.push('--no-ff');
-    }
-    if (squash) {
-      args.push('--squash');
-    }
-    args.push(branch);
-
     try {
-      const { stdout, stderr } = await execFileAsync('git', args, {
-        cwd,
-        encoding: 'utf-8',
-      });
-      const output = (stdout || stderr || '').trim();
-      return this.success(output || '(merge completed with no output)');
-    } catch (error: unknown) {
-      const execErr = error as { stderr?: string; message?: string };
+      this.validateRequiredParams(params, ['branch']);
+
+      const cwd = (params.cwd as string) || process.cwd();
+      const branch = (params.branch as string) || '';
+      const noFastForward = (params.noFastForward as boolean) || false;
+      const squash = (params.squash as boolean) || false;
+
+      if (!branch) {
+        return this.error('Branch name is required for merge.');
+      }
+
+      const args = ['merge'];
+      if (noFastForward) {
+        args.push('--no-ff');
+      }
+      if (squash) {
+        args.push('--squash');
+      }
+      args.push(branch);
+
+      try {
+        const { stdout, stderr } = await runGitCommand(args, cwd);
+        const output = (stdout || stderr || '').trim();
+        return this.success(output || '(merge completed with no output)');
+      } catch (error: unknown) {
+        const execErr = error as { message?: string };
+        return this.error(
+          `Git merge failed: ${execErr.message || String(error)}`
+        );
+      }
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
-        `Git merge failed: ${execErr.stderr || execErr.message || String(error)}`
+        `Git merge failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

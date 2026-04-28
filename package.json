@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "test:network": "ts-node tests/network-test.ts",
     "test:memory": "ts-node tests/memory-system-test.ts",
-    "test:auto-compact": "ts-node tests/auto-compact-test.ts"
+    "test:auto-compact": "ts-node tests/auto-compact-test.ts",
+    "test:git-tools": "ts-node tests/git-tools-test.ts",
+    "test": "ts-node tests/file-tools-test.ts && ts-node tests/command-tools-test.ts && ts-node tests/search-tools-test.ts && ts-node tests/other-tools-test.ts && ts-node tests/storage-session-test.ts && ts-node tests/skill-test.ts && ts-node tests/agent-test.ts && ts-node tests/git-tools-test.ts"
   },
   "keywords": [
     "ai",

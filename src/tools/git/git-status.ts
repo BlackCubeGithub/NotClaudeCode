@@ -1,9 +1,5 @@
 import { BaseTool } from '../base';
-import {
-  getToolDefinition,
-  runGitCommand,
-  runGitCommandSafe,
-} from './base';
+import { getToolDefinition, runGitCommand } from './base';
 
 export class GitStatusTool extends BaseTool {
   definition = getToolDefinition(
@@ -20,6 +16,15 @@ export class GitStatusTool extends BaseTool {
 
   async execute(params: Record<string, unknown>): Promise<{ success: boolean; output?: string; error?: string }> {
     const cwd = (params.cwd as string) || process.cwd();
-    return runGitCommandSafe('git status', cwd);
+    try {
+      const { stdout } = await runGitCommand(['status'], cwd);
+      return this.success(stdout);
+    } catch (error: unknown) {
+      const execErr = error as { message?: string };
+      if (execErr.message?.includes('not a git repository')) {
+        return this.error(execErr.message);
+      }
+      return this.error(`Git status failed: ${execErr.message || String(error)}`);
+    }
   }
 }

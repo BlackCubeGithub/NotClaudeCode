@@ -1,43 +1,62 @@
 # NotClaudeCode 开发路线图
 
 > 基于 Claude Code 2026 功能对比分析
-> 更新时间：2026-04-24
+> 更新时间：2026-04-28
+
+## ✅ 本次已完成
+
+### 重构与安全
+
+| 功能 | 文件 | 说明 |
+|:-----|:-----|:-----|
+| **工具基类验证重构** | `src/tools/base.ts` | `validateRequiredParams` 从 `ToolResult\|null` 改为 `void` + 抛异常，符合 TS 范式 |
+| **危险操作拦截系统** | `src/core/agent.ts` | 新增 `DangerousToolCallback` + `isDangerousTool()`，在 `Agent` 层统一拦截危险操作 |
+| **交互式确认机制** | `src/cli/index.ts` | 通过 `inquirer` 触发真正的用户确认，agent 无法绕过 |
+| **Force Push 安全确认** | `src/tools/git/git-push.ts` | `force=true` 时触发交互确认，已移除无效的 `force_confirmed` 参数 |
+
+---
 
 ## 📊 项目现状分析
 
 ### ✅ 已实现的核心功能
 
 #### 基础架构
-- ✅ 多AI提供商支持（5个：OpenAI, DeepSeek, Zhipu, Qwen, Kimi）
+- ✅ 多 AI 提供商支持（5 个：OpenAI, DeepSeek, Zhipu, Qwen, Kimi）
 - ✅ 流式输出和实时响应
 - ✅ 会话持久化和多会话管理
 - ✅ 检查点回滚机制
-- ✅ 四层上下文压缩架构（Layer 0-3）
-- ✅ 自动压缩触发机制
-- ✅ ContextMonitor 上下文监控器
+- ✅ 四层上下文压缩架构（Layer 0–3）
+- ✅ 自动压缩触发机制（ContextMonitor）
+- ✅ 智能会话记忆提取（项目概要 / 任务 / 决策 / 问题）
 
 #### 工具集
 - ✅ 文件操作：Read, Write, Edit, LS, Glob, Grep
 - ✅ 命令执行：RunCommand, CheckCommandStatus, StopCommand
 - ✅ 任务管理：TodoWrite
 - ✅ 网络功能：WebSearch, WebFetch, GetTime
+- ✅ **Git 操作（9 个子命令）**：GitStatus, GitCommit, GitPush, GitPull, GitDiff, GitBranch, GitLog, GitMerge, GitStash
 
-#### CLI界面
-- ✅ 彩色输出和进度提示
-- ✅ 交互式命令系统
-- ✅ 丰富的斜杠命令（/help, /clear, /history, /context, /memory, /compact, /session, /checkpoint）
-- ✅ 会话管理命令
-- ✅ 检查点管理命令
+#### 技能系统
+- ✅ 技能执行引擎（SkillManager + SkillParser）
+- ✅ 内置技能：`/document`（文档生成）、`/explain-code`（代码解释）、`/refactor`（代码重构）、`/test-generator`（测试生成）、`/code-review`（代码审查）
+- ✅ 多路径技能加载（用户级 / 项目级 / 内置）
+
+#### CLI 界面
+- ✅ 彩色输出和进度提示（Chalk + Ora）
+- ✅ 交互式命令系统（Inquirer）
+- ✅ 斜杠命令：`/help`, `/clear`, `/history`, `/context`, `/memory`, `/compact`, `/session`, `/checkpoint`, `/skill`
+- ✅ 会话管理命令（新建 / 列表 / 切换 / 删除）
+- ✅ 检查点管理命令（创建 / 列表 / 恢复）
 
 #### 测试和质量
-- ✅ ESLint 配置
-- ✅ 7个完整测试套件
+- ✅ ESLint 配置与代码质量优化
+- ✅ 8 个完整测试套件
 - ✅ TypeScript 严格模式
-- ✅ 代码质量优化
+- ✅ 自动压缩机制测试
 
 ### ❌ 与 Claude Code 2026 的主要差距
 
-根据调研，Claude Code 2026版本已发展为功能强大的AI编程中枢，我们的项目还缺少以下核心功能。
+根据调研，Claude Code 2026 版本已发展为功能强大的 AI 编程中枢，我们的项目已跨越初始阶段，以下核心功能仍在开发计划中：
 
 ---
 
@@ -45,71 +64,85 @@
 
 ### 📅 第一阶段：核心功能补全（优先级：高）
 
-#### 1. Git集成 ⭐⭐⭐⭐⭐
+#### 1. Git 集成 ⭐⭐⭐⭐⭐
 
 **功能描述**：
-- Git操作工具（commit, push, pull, branch, merge）
-- PR创建和审查
-- 冲突检测和解决
-- Diff分析和历史调查
-- Commit消息自动生成
+- ✅ Git 操作工具（commit, push, pull, branch, merge, diff, status, log, stash）
+- ✅ Commit 消息自动分析生成
+- ✅ **Force Push 危险操作拦截**（Agent 层统一确认，agent 无法绕过）
+- ⬜ PR 创建和审查（GitHub CLI）
+- ⬜ 冲突检测和解决
+- ⬜ Diff 分析和历史调查
 
-**实现建议**：
+**文件结构（已实现）**：
+```
+src/tools/git/
+├── base.ts            ✅ Git 工具基类
+├── git-status.ts     ✅
+├── git-commit.ts      ✅
+├── git-push.ts       ✅ + 危险操作拦截
+├── git-pull.ts       ✅
+├── git-diff.ts       ✅
+├── git-branch.ts     ✅
+├── git-log.ts        ✅
+├── git-merge.ts      ✅
+└── git-stash.ts      ✅
+```
 
-文件结构：
-- src/tools/git/git-base.ts - Git工具基类
-- src/tools/git/git-commit.ts - 提交工具
-- src/tools/git/git-branch.ts - 分支管理
-- src/tools/git/git-pr.ts - PR创建和审查
-- src/tools/git/git-diff.ts - Diff分析
-- src/tools/git/git-conflict.ts - 冲突解决
-- src/tools/git/git-history.ts - 历史调查
+**危险操作拦截（已实现）**：
 
-技术栈：
-- simple-git 库用于Git操作
-- GitHub CLI 用于PR操作
-- diff 库用于差异分析
+| 危险操作 | 检测条件 | 确认机制 |
+|:---------|:---------|:---------|
+| Force Push | `toolName === 'GitPush' && params['force'] === true` | `inquirer` 交互确认 |
 
-**预期收益**：
-- 大幅提升开发效率
-- 减少手动Git操作错误
-- 智能化的提交和PR管理
+扩展方式：在 `Agent.isDangerousTool()` 中添加新条件即可，无需改动调用链。
+
+**下一步**：
+- ⬜ `git-pr.ts` — PR 创建和审查
+- ⬜ `git-conflict.ts` — 冲突解决
+- ⬜ `git-history.ts` — 历史调查
+- ⬜ 集成 GitHub CLI 进行 PR 操作
+- ⬜ 扩展危险操作检测：`git-reset --hard`、`git-rebase` 等
 
 ---
 
 #### 2. 配置文件系统 ⭐⭐⭐⭐⭐
 
 **功能描述**：
-- CLAUDE.md 项目配置文件支持
-- 项目特定的编码规范和指令
-- 自定义命令别名
-- 多层配置（全局/项目/本地）
+- ⬜ CLAUDE.md 项目配置文件支持
+- ⬜ 项目特定的编码规范和指令
+- ⬜ 自定义命令别名
+- ⬜ 多层配置（全局 / 项目 / 本地）
 
 **实现建议**：
 
 文件结构：
-- src/core/config-manager.ts
-- src/types/config.ts
+```
+src/core/config-manager.ts   # 配置管理器
+src/types/config.ts          # 配置类型定义
+```
 
 配置文件示例（CLAUDE.md）：
 
-    # Project Configuration
-    
-    ## Coding Conventions
-    - Use TypeScript strict mode
-    - Prefer functional components
-    - Use @/ for imports
-    
-    ## Commands
-    - /test: npm run test
-    - /build: npm run build
-    
-    ## Rules
-    - Always run lint after edits
-    - Never commit to main directly
+```markdown
+# Project Configuration
+
+## Coding Conventions
+- Use TypeScript strict mode
+- Prefer functional components
+- Use @/ for imports
+
+## Commands
+- /test: npm run test
+- /build: npm run build
+
+## Rules
+- Always run lint after edits
+- Never commit to main directly
+```
 
 技术要点：
-- Markdown解析器
+- Markdown 解析器
 - 配置继承和覆盖机制
 - 热重载支持
 
@@ -123,17 +156,20 @@
 #### 3. 测试生成和执行 ⭐⭐⭐⭐
 
 **功能描述**：
-- 自动生成单元测试
-- 测试执行和调试
-- 测试覆盖率分析
-- TDD工作流支持
+- ⬜ 自动生成单元测试（内置 `/test-generator` 技能可调用，但非自动化工作流）
+- ⬜ 测试执行和调试
+- ⬜ 测试覆盖率分析
+- ⬜ TDD 工作流支持
 
 **实现建议**：
 
 文件结构：
-- src/tools/testing/test-generator.ts - 测试生成器
-- src/tools/testing/test-runner.ts - 测试运行器
-- src/tools/testing/coverage-analyzer.ts - 覆盖率分析
+```
+src/tools/testing/
+├── test-generator.ts       # 测试生成器
+├── test-runner.ts          # 测试运行器
+└── coverage-analyzer.ts    # 覆盖率分析
+```
 
 支持框架：
 - Jest
@@ -144,7 +180,7 @@
 功能特性：
 - 智能测试用例生成
 - 边界条件识别
-- Mock自动生成
+- Mock 自动生成
 - 测试失败诊断
 
 **预期收益**：
@@ -157,19 +193,22 @@
 #### 4. 代码审查和安全审计 ⭐⭐⭐⭐
 
 **功能描述**：
-- 自动代码审查
-- 安全漏洞检测（SQL注入、XSS、权限漏洞）
-- 性能问题识别
-- 最佳实践建议
-- 自动Lint修复
+- ✅ `/code-review` 内置技能（可调用）
+- ⬜ 安全漏洞检测（SQL 注入、XSS、权限漏洞）
+- ⬜ 性能问题识别
+- ⬜ 最佳实践建议
+- ⬜ 自动 Lint 修复
 
 **实现建议**：
 
 文件结构：
-- src/tools/review/code-reviewer.ts - 代码审查
-- src/tools/review/security-auditor.ts - 安全审计
-- src/tools/review/performance-analyzer.ts - 性能分析
-- src/tools/review/lint-fixer.ts - Lint修复
+```
+src/tools/review/
+├── code-reviewer.ts       # 代码审查（已有内置技能）
+├── security-auditor.ts    # 安全审计
+├── performance-analyzer.ts # 性能分析
+└── lint-fixer.ts          # Lint 修复
+```
 
 检测能力：
 - 安全漏洞（OWASP Top 10）
@@ -196,28 +235,32 @@
 #### 5. MCP（Model Context Protocol）集成 ⭐⭐⭐⭐⭐
 
 **功能描述**：
-- 连接外部工具和服务
-- 数据库访问
-- API集成
-- Slack/Discord集成
-- 浏览器自动化
+- ⬜ 连接外部工具和服务
+- ⬜ 数据库访问
+- ⬜ API 集成
+- ⬜ Slack/Discord 集成
+- ⬜ 浏览器自动化
 
 **实现建议**：
 
 文件结构：
-- src/mcp/mcp-client.ts - MCP客户端
-- src/mcp/mcp-server-manager.ts - 服务器管理
-- src/mcp/servers/database-server.ts
-- src/mcp/servers/slack-server.ts
-- src/mcp/servers/browser-server.ts
+```
+src/mcp/
+├── mcp-client.ts              # MCP 客户端
+├── mcp-server-manager.ts      # 服务器管理
+└── servers/
+    ├── database-server.ts     # 数据库服务器
+    ├── slack-server.ts        # Slack 服务器
+    └── browser-server.ts      # 浏览器服务器
+```
 
 协议实现：
 - JSON-RPC 2.0
-- WebSocket通信
+- WebSocket 通信
 - 服务发现机制
 
 内置服务器：
-- PostgreSQL/MySQL
+- PostgreSQL / MySQL
 - Slack
 - Discord
 - Playwright（浏览器）
@@ -232,20 +275,23 @@
 #### 6. 子代理系统 ⭐⭐⭐⭐
 
 **功能描述**：
-- 专用子代理（Explore, Plan, Review）
-- 并行代理执行
-- 代理团队协作
-- 任务委托和分配
+- ⬜ 专用子代理（Explore, Plan, Review）
+- ⬜ 并行代理执行
+- ⬜ 代理团队协作
+- ⬜ 任务委托和分配
 
 **实现建议**：
 
 文件结构：
-- src/core/sub-agent/sub-agent-manager.ts - 代理管理器
-- src/core/sub-agent/agent-base.ts - 代理基类
-- src/core/sub-agent/agents/explore-agent.ts - 探索代理
-- src/core/sub-agent/agents/plan-agent.ts - 规划代理
-- src/core/sub-agent/agents/review-agent.ts - 审查代理
-- src/core/sub-agent/communication.ts - 代理通信
+```
+src/core/sub-agent/
+├── sub-agent-manager.ts      # 代理管理器
+├── agent-base.ts             # 代理基类
+└── agents/
+    ├── explore-agent.ts      # 探索代理
+    ├── plan-agent.ts         # 规划代理
+    └── review-agent.ts       # 审查代理
+```
 
 特性：
 - 独立上下文
@@ -256,67 +302,56 @@
 **预期收益**：
 - 复杂任务分解
 - 并行处理能力
-- 专业化的AI助手
+- 专业化的 AI 助手
 
 ---
 
-#### 7. Skills系统 ⭐⭐⭐⭐
+#### 7. Skills 系统 ⭐⭐⭐⭐
 
 **功能描述**：
-- 自定义工作流（SKILL.md）
-- 可复用的任务模板
-- 内置技能（/batch, /simplify）
-- 技能市场
+- ✅ 自定义工作流（SKILL.md）
+- ✅ 可复用的任务模板
+- ✅ 内置技能（`/document`, `/explain-code`, `/refactor`, `/test-generator`, `/code-review`）
+- ⬜ 技能市场
+
+**文件结构（已实现）**：
+```
+src/core/skills/
+├── skill-manager.ts          ✅ 技能管理
+├── skill-parser.ts           ✅ 技能解析
+├── index.ts                  ✅
+└── built-in/
+    ├── document.md           ✅
+    ├── explain-code.md      ✅
+    ├── refactor.md          ✅
+    ├── test-generator.md    ✅
+    └── code-review.md       ✅
+```
+
+**下一步**：
+- ⬜ 技能市场功能
+- ⬜ 更多内置技能（`/batch`, `/simplify`, `/translate`）
+- ⬜ 技能版本管理和更新
+
+---
+
+#### 8. Hooks 系统 ⭐⭐⭐
+
+**功能描述**：
+- ⬜ 生命周期事件钩子
+- ⬜ 自动化工作流
+- ⬜ 自定义事件处理
+- ✅ **PreToolUse 钩子（部分实现）**：危险工具统一拦截与用户确认
 
 **实现建议**：
 
 文件结构：
-- src/core/skills/skill-manager.ts - 技能管理
-- src/core/skills/skill-parser.ts - 技能解析
-- src/core/skills/built-in/batch-skill.ts
-- src/core/skills/built-in/simplify-skill.ts
-
-SKILL.md 示例：
-
-    # Code Review Skill
-    
-    ## Trigger
-    - File pattern: **/*.ts
-    - Command: /review
-    
-    ## Steps
-    1. Run lint check
-    2. Analyze code complexity
-    3. Check security issues
-    4. Generate report
-
-功能：
-- Markdown解析
-- 变量替换
-- 条件执行
-- 错误处理
-
-**预期收益**：
-- 工作流自动化
-- 最佳实践复用
-- 团队知识沉淀
-
----
-
-#### 8. Hooks系统 ⭐⭐⭐
-
-**功能描述**：
-- 生命周期事件钩子
-- 自动化工作流
-- 自定义事件处理
-- PreToolUse / PostToolUse 钩子
-
-**实现建议**：
-
-文件结构：
-- src/core/hooks/hook-manager.ts - 钩子管理
-- src/core/hooks/event-bus.ts - 事件总线
-- src/core/hooks/executor.ts - 钩子执行器
+```
+src/core/hooks/
+├── hook-manager.ts    # 钩子管理
+├── event-bus.ts       # 事件总线
+└── executor.ts        # 钩子执行器
+```
 
 事件类型：
 - PreToolUse: 工具执行前
@@ -327,17 +362,19 @@ SKILL.md 示例：
 
 钩子配置示例：
 
-    {
-      "hooks": {
-        "PostToolUse": [
-          {
-            "type": "shell",
-            "command": "npm run lint",
-            "filter": { "tool": "Write" }
-          }
-        ]
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "shell",
+        "command": "npm run lint",
+        "filter": { "tool": "Write" }
       }
-    }
+    ]
+  }
+}
+```
 
 **预期收益**：
 - 自动化工作流
@@ -351,33 +388,38 @@ SKILL.md 示例：
 #### 9. 插件系统 ⭐⭐⭐⭐
 
 **功能描述**：
-- 插件包管理
-- 插件市场
-- 版本控制和更新
-- 插件隔离
+- ⬜ 插件包管理
+- ⬜ 插件市场
+- ⬜ 版本控制和更新
+- ⬜ 插件隔离
 
 **实现建议**：
 
 文件结构：
-- src/core/plugins/plugin-manager.ts - 插件管理
-- src/core/plugins/plugin-loader.ts - 插件加载
-- src/core/plugins/plugin-market.ts - 插件市场
+```
+src/core/plugins/
+├── plugin-manager.ts    # 插件管理
+├── plugin-loader.ts     # 插件加载
+└── plugin-market.ts     # 插件市场
+```
 
 插件结构：
 
-    my-plugin/
-    ├── package.json
-    ├── plugin.json          # 插件元数据
-    ├── skills/              # 技能
-    ├── agents/              # 代理
-    ├── hooks/               # 钩子
-    └── tools/               # 工具
+```
+my-plugin/
+├── package.json
+├── plugin.json          # 插件元数据
+├── skills/              # 技能
+├── agents/              # 代理
+├── hooks/               # 钩子
+└── tools/               # 工具
+```
 
-CLI命令：
-- claude plugin install <name>
-- claude plugin update
-- claude plugin list
-- claude plugin create
+CLI 命令：
+- `notclaude plugin install <name>`
+- `notclaude plugin update`
+- `notclaude plugin list`
+- `notclaude plugin create`
 
 **预期收益**：
 - 生态扩展
@@ -389,21 +431,24 @@ CLI命令：
 #### 10. 多模态输入 ⭐⭐⭐
 
 **功能描述**：
-- 图像输入支持
-- 截图分析
-- 设计稿转代码
-- 错误截图诊断
+- ⬜ 图像输入支持
+- ⬜ 截图分析
+- ⬜ 设计稿转代码
+- ⬜ 错误截图诊断
 
 **实现建议**：
 
 文件结构：
-- src/tools/multimodal/image-input.ts - 图像输入
-- src/tools/multimodal/screenshot-analyzer.ts - 截图分析
-- src/tools/multimodal/design-to-code.ts - 设计转代码
+```
+src/tools/multimodal/
+├── image-input.ts          # 图像输入
+├── screenshot-analyzer.ts  # 截图分析
+└── design-to-code.ts       # 设计转代码
+```
 
 技术实现：
-- 扩展AI提供商支持视觉模型
-- 图像Base64编码
+- 扩展 AI 提供商支持视觉模型（GPT-4V、Claude 3）
+- 图像 Base64 编码
 - 剪贴板图像读取
 - 图像预处理
 
@@ -411,7 +456,7 @@ CLI命令：
 - Ctrl+V 粘贴截图
 - 设计稿转组件
 - 错误截图诊断
-- UI自动化测试
+- UI 自动化测试
 
 **预期收益**：
 - 更直观的交互
@@ -423,22 +468,25 @@ CLI命令：
 #### 11. 远程控制和协作 ⭐⭐⭐
 
 **功能描述**：
-- Web界面
-- 远程会话控制
-- 多用户协作
-- 移动端访问
+- ⬜ Web 界面
+- ⬜ 远程会话控制
+- ⬜ 多用户协作
+- ⬜ 移动端访问
 
 **实现建议**：
 
 文件结构：
-- src/server/web-server.ts - Web服务器
-- src/server/websocket.ts - WebSocket通信
-- src/server/collaboration.ts - 协作管理
+```
+src/server/
+├── web-server.ts        # Web 服务器
+├── websocket.ts         # WebSocket 通信
+└── collaboration.ts     # 协作管理
+```
 
 技术栈：
-- Express/Fastify
+- Express / Fastify
 - Socket.io
-- React/Vue前端
+- React / Vue 前端
 
 功能：
 - 实时同步
@@ -453,37 +501,42 @@ CLI命令：
 
 ---
 
-#### 12. SDK/API ⭐⭐⭐
+#### 12. SDK / API ⭐⭐⭐
 
 **功能描述**：
-- 编程接口
-- CI/CD集成
-- 自动化脚本支持
-- GitHub Actions集成
+- ⬜ 编程接口
+- ⬜ CI/CD 集成
+- ⬜ 自动化脚本支持
+- ⬜ GitHub Actions 集成
 
 **实现建议**：
 
 文件结构：
-- src/sdk/index.ts - SDK入口
-- src/sdk/client.ts - API客户端
-- src/sdk/types.ts - 类型定义
+```
+src/sdk/
+├── index.ts      # SDK 入口
+├── client.ts     # API 客户端
+└── types.ts     # 类型定义
+```
 
-API设计示例：
+API 设计示例：
 
-    import { ClaudeCode } from 'not-claude-code-sdk';
-    
-    const client = new ClaudeCode({ provider: 'deepseek' });
-    
-    // 代码生成
-    const code = await client.generateCode('Create a React hook');
-    
-    // 文件操作
-    await client.writeFile('src/utils.ts', code);
-    
-    // Git操作
-    await client.commit('Add new utility function');
+```typescript
+import { ClaudeCode } from 'not-claude-code-sdk';
 
-CI/CD集成：
+const client = new ClaudeCode({ provider: 'deepseek' });
+
+// 代码生成
+const code = await client.generateCode('Create a React hook');
+
+// 文件操作
+await client.writeFile('src/utils.ts', code);
+
+// Git 操作
+await client.commit('Add new utility function');
+```
+
+CI/CD 集成：
 - GitHub Actions
 - GitLab CI
 - Jenkins
@@ -500,17 +553,20 @@ CI/CD集成：
 #### 13. 自动记忆系统 ⭐⭐⭐
 
 **功能描述**：
-- 跨会话学习
-- 自动记住用户偏好
-- 项目知识积累
-- 智能推荐
+- ⬜ 跨会话学习
+- ⬜ 自动记住用户偏好
+- ⬜ 项目知识积累
+- ⬜ 智能推荐
 
 **实现建议**：
 
 文件结构：
-- src/core/memory/auto-memory.ts - 自动记忆
-- src/core/memory/knowledge-graph.ts - 知识图谱
-- src/core/memory/extractor.ts - 智能提取
+```
+src/core/memory/
+├── auto-memory.ts      # 自动记忆
+├── knowledge-graph.ts   # 知识图谱
+└── extractor.ts         # 智能提取
+```
 
 记忆类型：
 - 用户偏好
@@ -519,7 +575,7 @@ CI/CD集成：
 - 最佳实践
 
 实现：
-- 向量数据库（Chroma/Pinecone）
+- 向量数据库（Chroma / Pinecone）
 - 语义搜索
 - 自动分类
 
@@ -533,24 +589,27 @@ CI/CD集成：
 #### 14. 语音输入 ⭐⭐
 
 **功能描述**：
-- 实时语音转文字
-- 多语言支持（20+）
-- 编程优化识别
-- 按键录音
+- ⬜ 实时语音转文字
+- ⬜ 多语言支持（20+）
+- ⬜ 编程优化识别
+- ⬜ 按键录音
 
 **实现建议**：
 
 文件结构：
-- src/tools/voice/voice-input.ts - 语音输入
-- src/tools/voice/transcriber.ts - 转录引擎
+```
+src/tools/voice/
+├── voice-input.ts   # 语音输入
+└── transcriber.ts  # 转录引擎
+```
 
 技术选择：
 - OpenAI Whisper API
-- 本地Whisper模型
+- 本地 Whisper 模型
 - Web Speech API
 
 功能：
-- Space键按住录音
+- Space 键按住录音
 - 实时转录
 - 编程术语优化
 - 多语言识别
@@ -562,18 +621,20 @@ CI/CD集成：
 
 ---
 
-#### 15. Git Worktree隔离 ⭐⭐
+#### 15. Git Worktree 隔离 ⭐⭐
 
 **功能描述**：
-- 独立的仓库副本
-- 并行开发支持
-- 冲突避免
-- 自动清理
+- ⬜ 独立的仓库副本
+- ⬜ 并行开发支持
+- ⬜ 冲突避免
+- ⬜ 自动清理
 
 **实现建议**：
 
 文件结构：
-- src/tools/git/worktree-manager.ts - Worktree管理
+```
+src/tools/git/worktree-manager.ts    # Worktree 管理
+```
 
 功能：
 - 创建隔离环境
@@ -596,27 +657,30 @@ CI/CD集成：
 #### 16. 定时任务 ⭐⭐
 
 **功能描述**：
-- 定期执行任务
-- 云端调度
-- 本地轮询
-- 任务队列
+- ⬜ 定期执行任务
+- ⬜ 云端调度
+- ⬜ 本地轮询
+- ⬜ 任务队列
 
 **实现建议**：
 
 文件结构：
-- src/core/scheduler/task-scheduler.ts - 任务调度
-- src/core/scheduler/cron-parser.ts - Cron解析
-- src/core/scheduler/task-queue.ts - 任务队列
+```
+src/core/scheduler/
+├── task-scheduler.ts    # 任务调度
+├── cron-parser.ts       # Cron 解析
+└── task-queue.ts        # 任务队列
+```
 
 调度方式：
 - 云端（claude.ai）
 - GitHub Actions
 - 本地守护进程
-- /loop 命令
+- `/loop` 命令
 
 示例：
-- /loop 5m check if the deploy finished
-- /loop daily review open PRs
+- `/loop 5m check if the deploy finished`
+- `/loop daily review open PRs`
 
 **预期收益**：
 - 自动化运维
@@ -629,15 +693,15 @@ CI/CD集成：
 
 ### 代码质量
 - [ ] 完善测试覆盖：为所有新功能添加测试
-- [ ] 性能优化：大文件处理、长对话加载优化
+- [x] 性能优化：四层压缩机制已实现，大文件处理待优化
 - [ ] 错误处理：更友好的错误提示和恢复机制
-- [ ] 文档完善：API文档、架构文档、贡献指南
+- [ ] 文档完善：API 文档、架构文档、贡献指南
 
 ### 架构优化
 - [ ] 模块化设计：更好的模块边界和依赖管理
 - [ ] 插件架构：为核心功能设计插件接口
-- [ ] 事件驱动：实现事件总线支持Hooks系统
-- [ ] 类型安全：完善TypeScript类型定义
+- [ ] 事件驱动：实现事件总线支持 Hooks 系统
+- [x] 类型安全：完善 TypeScript 类型定义
 
 ### 用户体验
 - [ ] 进度反馈：更详细的操作进度提示
@@ -649,14 +713,14 @@ CI/CD集成：
 
 ## 📈 推荐的开发顺序
 
-### 第一优先级（1-2个月）
-1. **Git集成** → 2. **配置文件系统** → 3. **测试生成** → 4. **代码审查**
+### 第一优先级（1–2 个月）
+1. **配置文件系统（CLAUDE.md）** → 2. **测试生成工作流** → 3. **Git PR 和冲突解决** → 4. **安全审计增强**
 
-### 第二优先级（2-3个月）
-5. **MCP集成** → 6. **子代理系统** → 7. **Skills系统** → 8. **Hooks系统**
+### 第二优先级（2–3 个月）
+5. **MCP 集成** → 6. **子代理系统** → 7. **Hooks 系统** → 8. **技能市场**
 
-### 第三优先级（3-4个月）
-9. **插件系统** → 10. **多模态输入** → 11. **远程控制** → 12. **SDK/API**
+### 第三优先级（3–4 个月）
+9. **插件系统** → 10. **多模态输入** → 11. **远程控制** → 12. **SDK / API**
 
 ### 第四优先级（长期规划）
 13. **自动记忆** → 14. **语音输入** → 15. **Worktree** → 16. **定时任务**
@@ -675,77 +739,111 @@ CI/CD集成：
 ### 质量保证
 - 每个功能必须有对应的测试套件
 - 代码审查通过后才能合并
-- 保持至少80%的测试覆盖率
+- 保持至少 80% 的测试覆盖率
 - 定期进行性能测试
 
 ### 发布策略
 - 主版本号：重大架构变更或不兼容更新
 - 次版本号：新功能添加
-- 修订号：Bug修复和小改进
+- 修订号：Bug 修复和小改进
 
 ---
 
 ## 🎯 里程碑目标
 
-### v0.2.0 - Git集成版（预计1个月）
-- 完整的Git工具集
-- 配置文件系统
-- 基础测试生成
+### v0.2.0 — Git 集成版（预计 1 个月）
+- ✅ 完整 Git 工具集（9 个子命令）
+- ✅ 技能系统初始化
+- ✅ **危险操作拦截系统**（Agent 层统一确认）
+- ⬜ 配置文件系统（CLAUDE.md）
+- ⬜ 基础测试生成工作流
 
-### v0.3.0 - 企业协作版（预计2个月）
-- MCP集成
-- 子代理系统
-- Skills系统
+### v0.3.0 — 企业协作版（预计 2 个月）
+- ⬜ MCP 集成
+- ⬜ 子代理系统
+- ⬜ Hooks 系统
+- ⬜ 技能市场
 
-### v0.4.0 - 插件生态版（预计3个月）
-- 插件系统
-- 多模态输入
-- SDK/API
+### v0.4.0 — 插件生态版（预计 3 个月）
+- ⬜ 插件系统
+- ⬜ 多模态输入
+- ⬜ 远程控制
+- ⬜ SDK / API
 
-### v1.0.0 - 正式版（预计4-5个月）
-- 所有核心功能稳定
-- 完整文档
-- 企业级支持
+### v1.0.0 — 正式版（预计 4–5 个月）
+- ⬜ 所有核心功能稳定
+- ⬜ 完整文档
+- ⬜ 企业级支持
 
 ---
 
 ## 📊 功能对比矩阵
 
 | 功能类别 | Claude Code 2026 | NotClaudeCode 当前 | 计划版本 |
-|---------|------------------|-------------------|---------|
-| 多AI提供商 | ✅ | ✅ | - |
-| 流式输出 | ✅ | ✅ | - |
-| 会话管理 | ✅ | ✅ | - |
-| 上下文压缩 | ✅ | ✅ | - |
-| Git集成 | ✅ | ❌ | v0.2.0 |
-| 配置文件 | ✅ | ❌ | v0.2.0 |
-| 测试生成 | ✅ | ❌ | v0.2.0 |
-| 代码审查 | ✅ | ❌ | v0.2.0 |
-| MCP集成 | ✅ | ❌ | v0.3.0 |
-| 子代理 | ✅ | ❌ | v0.3.0 |
-| Skills | ✅ | ❌ | v0.3.0 |
-| Hooks | ✅ | ❌ | v0.3.0 |
-| 插件系统 | ✅ | ❌ | v0.4.0 |
-| 多模态 | ✅ | ❌ | v0.4.0 |
-| 远程控制 | ✅ | ❌ | v0.4.0 |
-| SDK/API | ✅ | ❌ | v0.4.0 |
-| 自动记忆 | ✅ | ❌ | v1.0.0 |
-| 语音输入 | ✅ | ❌ | v1.0.0 |
-| Worktree | ✅ | ❌ | v1.0.0 |
-| 定时任务 | ✅ | ❌ | v1.0.0 |
+|----------|:----------------:|:------------------:|:--------:|
+| 多 AI 提供商 | ✅ | ✅ | — |
+| 流式输出 | ✅ | ✅ | — |
+| 会话管理 | ✅ | ✅ | — |
+| 上下文压缩 | ✅ | ✅ | — |
+| Git 集成 | ✅ | ✅ **部分** | v0.2.0 |
+| 配置文件 | ✅ | ⬜ | v0.2.0 |
+| 测试生成 | ✅ | ⬜ | v0.2.0 |
+| 代码审查 | ✅ | ✅ **部分** | v0.2.0 |
+| Skills | ✅ | ✅ | — |
+| MCP 集成 | ✅ | ⬜ | v0.3.0 |
+| 子代理 | ✅ | ⬜ | v0.3.0 |
+| Hooks | ✅ | ⬜ | v0.3.0 |
+| 插件系统 | ✅ | ⬜ | v0.4.0 |
+| 多模态 | ✅ | ⬜ | v0.4.0 |
+| 远程控制 | ✅ | ⬜ | v0.4.0 |
+| SDK / API | ✅ | ⬜ | v0.4.0 |
+| 自动记忆 | ✅ | ⬜ | v1.0.0 |
+| 语音输入 | ✅ | ⬜ | v1.0.0 |
+| Worktree | ✅ | ⬜ | v1.0.0 |
+| 定时任务 | ✅ | ⬜ | v1.0.0 |
+
+> 图例：✅ 已实现 · ⬜ 计划中
 
 ---
 
 ## 🤝 贡献指南
 
-欢迎社区贡献！请查看 CONTRIBUTING.md 了解如何参与开发。
+欢迎社区贡献！
 
 ### 优先贡献领域
-1. Git工具集成
-2. 测试用例编写
-3. 文档翻译
-4. Bug修复
+1. 配置文件系统（CLAUDE.md）
+2. Git PR 和冲突解决
+3. 测试用例编写
+4. 文档翻译
+
+### 提交规范
+```
+feat: 新功能
+fix: Bug 修复
+docs: 文档更新
+refactor: 代码重构
+test: 测试相关
+chore: 构建 / 工具更新
+```
 
 ---
 
-**让我们一起打造最强大的开源AI编程助手！** 🚀
+## 📋 Git 提交历史（v0.1.x）
+
+| 提交 | 说明 |
+|:-----|:-----|
+| `f8c2882` | 新增 Git 工具集与修复 Skill 命令 |
+| `8687a30` | 创建 Skill 系统初始化 |
+| `7da089b` | 文档更新 |
+| `74173c0` | 代码质量优化、ESLint、测试套件增加 |
+| `b22ccea` | 合规性文件更新，自动上下文压缩机制完善 |
+| `a1ff5db` | 会话管理、检查点、四层上下文压缩 V1 |
+| `351f24b` | 新增 DeepSeek/Qwen/Kimi/GLM 支持与 Debug 模式 |
+| `fc229a5` | 新增 Todo 工具和 Web 搜索工具 |
+| `ad51e13` | 初始版本发布 |
+
+详细更新日志请参考 [src/doc/2026-4-23updatelog.md](src/doc/2026-4-23updatelog.md)。
+
+---
+
+**让我们一起打造最强大的开源 AI 编程助手！** 🚀

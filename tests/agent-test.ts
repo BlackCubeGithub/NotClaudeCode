@@ -143,7 +143,13 @@ async function testAgentInitialization() {
     const agent = new Agent(mockProvider, testDir);
 
     const toolNames = agent.getToolDefinitions().map((t) => t.name);
-    const requiredTools = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'LS', 'RunCommand'];
+    const requiredTools = [
+      'Read', 'Write', 'Edit', 'Glob', 'Grep', 'LS', 'RunCommand',
+      'TodoWrite', 'WebSearch', 'WebFetch', 'GetTime',
+      'Skill',
+      'GitStatus', 'GitCommit', 'GitPush', 'GitPull',
+      'GitDiff', 'GitBranch', 'GitLog', 'GitMerge', 'GitStash',
+    ];
     const hasAllTools = requiredTools.every((t) => toolNames.includes(t));
 
     if (hasAllTools) {
@@ -155,6 +161,45 @@ async function testAgentInitialization() {
     }
   } catch (error) {
     log('red', `  ✗ Tool check threw: ${error}`);
+  }
+
+  total++;
+  try {
+    const mockProvider = new MockProvider();
+    const agent = new Agent(mockProvider, testDir);
+    const toolNames = agent.getToolDefinitions().map((t) => t.name);
+
+    const gitTools = [
+      'GitStatus', 'GitCommit', 'GitPush', 'GitPull',
+      'GitDiff', 'GitBranch', 'GitLog', 'GitMerge', 'GitStash',
+    ];
+    const hasGitTools = gitTools.every((t) => toolNames.includes(t));
+
+    if (hasGitTools) {
+      log('green', `  ✓ Agent has all ${gitTools.length} Git tools`);
+      passed++;
+    } else {
+      const missing = gitTools.filter((t) => !toolNames.includes(t));
+      log('red', `  ✗ Agent missing Git tools: ${missing.join(', ')}`);
+    }
+  } catch (error) {
+    log('red', `  ✗ Git tools check threw: ${error}`);
+  }
+
+  total++;
+  try {
+    const mockProvider = new MockProvider();
+    const agent = new Agent(mockProvider, testDir);
+    const toolNames = agent.getToolDefinitions().map((t) => t.name);
+
+    if (toolNames.includes('Skill')) {
+      log('green', '  ✓ Agent has Skill tool');
+      passed++;
+    } else {
+      log('red', '  ✗ Agent missing Skill tool');
+    }
+  } catch (error) {
+    log('red', `  ✗ Skill tool check threw: ${error}`);
   }
 
   total++;
@@ -338,18 +383,31 @@ async function testToolDefinitions() {
 
   const mockProvider = new MockProvider();
   const agent = new Agent(mockProvider, testDir);
+  const toolDefs = agent.getToolDefinitions();
 
   let passed = 0;
   let total = 0;
 
-  const toolDefs = agent.getToolDefinitions();
+  const requiredToolNames = [
+    // File tools
+    'Read', 'Write', 'Edit', 'LS', 'Glob', 'Grep',
+    // Command tools
+    'RunCommand', 'CheckCommandStatus', 'StopCommand',
+    // Todo / Web tools
+    'TodoWrite', 'WebSearch', 'WebFetch', 'GetTime',
+    // Skill
+    'Skill',
+    // Git tools (9)
+    'GitStatus', 'GitCommit', 'GitPush', 'GitPull',
+    'GitDiff', 'GitBranch', 'GitLog', 'GitMerge', 'GitStash',
+  ];
 
   total++;
-  if (toolDefs.length > 0) {
-    log('green', `  ✓ Agent has ${toolDefs.length} tool definitions`);
+  if (toolDefs.length >= requiredToolNames.length) {
+    log('green', `  ✓ Agent has ${toolDefs.length} tool definitions (>= ${requiredToolNames.length})`);
     passed++;
   } else {
-    log('red', '  ✗ Agent has no tool definitions');
+    log('red', `  ✗ Agent has only ${toolDefs.length} tools, expected >= ${requiredToolNames.length}`);
   }
 
   total++;
@@ -379,6 +437,16 @@ async function testToolDefinitions() {
     passed++;
   } else {
     log('red', '  ✗ Some tools have invalid parameter schemas');
+  }
+
+  total++;
+  const allRequired = requiredToolNames.every((name) => toolDefs.some((t) => t.name === name));
+  if (allRequired) {
+    log('green', `  ✓ All ${requiredToolNames.length} required tools present`);
+    passed++;
+  } else {
+    const missing = requiredToolNames.filter((n) => !toolDefs.some((t) => t.name === n));
+    log('red', `  ✗ Missing tools: ${missing.join(', ')}`);
   }
 
   log('yellow', `\n  Tool Definitions: ${passed}/${total} tests passed`);

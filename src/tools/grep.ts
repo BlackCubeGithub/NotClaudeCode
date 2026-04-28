@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 
 const execAsync = promisify(exec);
@@ -84,6 +84,9 @@ export class GrepTool extends BaseTool {
         return this.success('No matches found.');
       }
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error executing grep: ${error instanceof Error ? error.message : String(error)}`
       );

@@ -77,5 +77,16 @@ export interface AIProvider {
   getModel?(): string;
 }
 
+export interface DangerousToolInfo {
+  toolName: string;
+  params: Record<string, unknown>;
+  reason: string;
+}
+
+export type DangerousToolCallback = (
+  info: DangerousToolInfo
+) => Promise<boolean>;
+
 export * from './session';
 export * from './skill';
+export * from './config';

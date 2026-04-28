@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 
 export class ReadTool extends BaseTool {
@@ -52,6 +52,9 @@ export class ReadTool extends BaseTool {
 
       return this.success(numberedLines);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error reading file: ${error instanceof Error ? error.message : String(error)}`
       );

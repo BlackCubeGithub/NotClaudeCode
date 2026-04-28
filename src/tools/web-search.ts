@@ -1,4 +1,4 @@
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 import { fetchJsonWithRetry } from '../utils/retry';
 
@@ -98,6 +98,9 @@ export class WebSearchTool extends BaseTool {
 
       return this.success(lines.join('\n'));
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error searching web: ${error instanceof Error ? error.message : String(error)}`
       );

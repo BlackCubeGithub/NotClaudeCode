@@ -1,4 +1,4 @@
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 import { SkillManager } from '../core/skills/skill-manager';
 
@@ -100,7 +100,7 @@ Available skills can be discovered by using the "list" action.`,
       }
 
       const result = await this.skillManager.executeSkill(skillName, variables);
-      
+
       if (result.success) {
         return this.success(
           `Skill "${skillName}" executed successfully.\n${result.output}`
@@ -111,6 +111,9 @@ Available skills can be discovered by using the "list" action.`,
         );
       }
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error executing skill: ${error instanceof Error ? error.message : String(error)}`
       );

@@ -1,8 +1,7 @@
-import { exec as execSync } from 'child_process';
-import { promisify } from 'util';
+import { spawn as spawnSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ToolDefinition, ToolResult } from '../../types';
-
-const execAsync = promisify(execSync);
 
 export interface ParsedStatus {
   current: string | null;
@@ -74,21 +73,60 @@ export function formatStatus(status: ParsedStatus): string {
   return lines.join('\n').trimEnd();
 }
 
+export function isGitRepository(cwd: string): boolean {
+  try {
+    return fs.existsSync(cwd) && fs.statSync(cwd).isDirectory() && fs.existsSync(path.join(cwd, '.git'));
+  } catch {
+    return false;
+  }
+}
+
 export async function runGitCommand(
-  command: string,
+  args: string[],
   cwd: string
 ): Promise<{ stdout: string; stderr: string }> {
-  try {
-    const { stdout, stderr } = await execAsync(command, {
-      cwd,
-      maxBuffer: 1024 * 1024 * 50,
-      encoding: 'utf-8',
-    });
-    return { stdout: stdout || '', stderr: stderr || '' };
-  } catch (error: unknown) {
-    const execErr = error as { stdout?: string; stderr?: string; message?: string };
-    throw new Error(execErr.stderr || execErr.message || String(error));
+  if (!isGitRepository(cwd)) {
+    throw new Error(
+      `fatal: not a git repository (or any of the parent directories): .git\n` +
+      `  (set path to a valid git repository, or omit to use current working directory)`
+    );
   }
+  return new Promise((resolve, reject) => {
+    const proc = spawnSync('git', args, {
+      cwd,
+      shell: false,
+      windowsHide: true,
+    });
+    let stdout = '';
+    let stderr = '';
+
+    if (proc.stdout) {
+      proc.stdout.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
+    }
+    if (proc.stderr) {
+      proc.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+    }
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        const err: Record<string, unknown> = { code, stderr };
+        reject(Object.assign(new Error(stderr || `git exited with code ${code}`), err));
+      }
+    });
+    proc.on('error', (err) => {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        reject(new Error('git command not found — is Git installed and in PATH?'));
+      } else {
+        reject(err);
+      }
+    });
+  });
 }
 
 export function getToolDefinition(
@@ -109,10 +147,10 @@ export function getToolDefinition(
 }
 
 export async function runGitCommandSafe(
-  command: string,
+  args: string[],
   cwd: string
 ): Promise<ToolResult> {
-  const { stdout, stderr } = await runGitCommand(command, cwd);
+  const { stdout, stderr } = await runGitCommand(args, cwd);
   if (stderr && !stdout) {
     return { success: false, error: stderr };
   }

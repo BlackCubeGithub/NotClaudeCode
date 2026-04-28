@@ -1,9 +1,5 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { BaseTool } from '../base';
-import { getToolDefinition } from './base';
-
-const execFileAsync = promisify(execFile);
+import { getToolDefinition, runGitCommand } from './base';
 
 export class GitLogTool extends BaseTool {
   definition = getToolDefinition(
@@ -13,6 +9,10 @@ export class GitLogTool extends BaseTool {
       n: {
         type: 'number',
         description: 'Number of commits to show (default: 10).',
+      },
+      maxCount: {
+        type: 'number',
+        description: 'Number of commits to show (alias for n, default: 10).',
       },
       file: {
         type: 'string',
@@ -28,7 +28,7 @@ export class GitLogTool extends BaseTool {
 
   async execute(params: Record<string, unknown>): Promise<{ success: boolean; output?: string; error?: string }> {
     const cwd = (params.cwd as string) || process.cwd();
-    const n = ((params.n as number) || 10);
+    const n = ((params.n as number) || (params.maxCount as number) || 10);
     const file = (params.file as string) || '';
 
     const args = ['log', '--oneline', `-n${n}`];
@@ -37,16 +37,13 @@ export class GitLogTool extends BaseTool {
     }
 
     try {
-      const { stdout, stderr } = await execFileAsync('git', args, {
-        cwd,
-        encoding: 'utf-8',
-      });
+      const { stdout, stderr } = await runGitCommand(args, cwd);
       const output = (stdout || stderr || '').trim();
       return this.success(output || '(no output)');
     } catch (error: unknown) {
-      const execErr = error as { stderr?: string; message?: string };
+      const execErr = error as { message?: string };
       return this.error(
-        `Git log failed: ${execErr.stderr || execErr.message || String(error)}`
+        `Git log failed: ${execErr.message || String(error)}`
       );
     }
   }

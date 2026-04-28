@@ -1,5 +1,5 @@
 import { glob as globFn } from 'glob';
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 
 export class GlobTool extends BaseTool {
@@ -42,6 +42,9 @@ export class GlobTool extends BaseTool {
 
       return this.success(files.join('\n'));
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error executing glob: ${error instanceof Error ? error.message : String(error)}`
       );

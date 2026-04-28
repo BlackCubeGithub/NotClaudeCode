@@ -1,9 +1,5 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { BaseTool } from '../base';
-import { getToolDefinition } from './base';
-
-const execFileAsync = promisify(execFile);
+import { getToolDefinition, runGitCommand } from './base';
 
 export class GitStashTool extends BaseTool {
   definition = getToolDefinition(
@@ -85,16 +81,13 @@ export class GitStashTool extends BaseTool {
     }
 
     try {
-      const { stdout, stderr } = await execFileAsync('git', args, {
-        cwd,
-        encoding: 'utf-8',
-      });
+      const { stdout, stderr } = await runGitCommand(args, cwd);
       const output = (stdout || stderr || '').trim();
       return this.success(output || '(no output)');
     } catch (error: unknown) {
-      const execErr = error as { stderr?: string; message?: string };
+      const execErr = error as { message?: string };
       return this.error(
-        `Git stash failed: ${execErr.stderr || execErr.message || String(error)}`
+        `Git stash failed: ${execErr.message || String(error)}`
       );
     }
   }

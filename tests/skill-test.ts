@@ -3,7 +3,6 @@ import * as fs from 'fs';
 import { SkillParser } from '../src/core/skills/skill-parser';
 import { SkillManager } from '../src/core/skills/skill-manager';
 import { SkillTool } from '../src/tools/skill';
-import { Map } from '../src/types';
 
 const COLORS = {
   reset: '\x1b[0m',

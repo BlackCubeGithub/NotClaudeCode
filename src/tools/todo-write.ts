@@ -1,4 +1,4 @@
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 import { TodoManager, TodoItem } from './todo-manager';
 
@@ -87,6 +87,9 @@ export class TodoWriteTool extends BaseTool {
 
       return this.success(output);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error managing todos: ${error instanceof Error ? error.message : String(error)}`
       );

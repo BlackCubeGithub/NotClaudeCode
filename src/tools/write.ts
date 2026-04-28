@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 
 export class WriteTool extends BaseTool {
@@ -40,6 +40,9 @@ export class WriteTool extends BaseTool {
 
       return this.success(`Successfully wrote to ${filePath}`);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error writing file: ${error instanceof Error ? error.message : String(error)}`
       );

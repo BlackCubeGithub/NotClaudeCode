@@ -1,9 +1,5 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { BaseTool } from '../base';
-import { getToolDefinition } from './base';
-
-const execFileAsync = promisify(execFile);
+import { getToolDefinition, runGitCommand } from './base';
 
 export class GitPullTool extends BaseTool {
   definition = getToolDefinition(
@@ -39,16 +35,14 @@ export class GitPullTool extends BaseTool {
     }
 
     try {
-      const { stdout, stderr } = await execFileAsync('git', args, {
-        cwd,
-        encoding: 'utf-8',
-      });
+      const { stdout, stderr } = await runGitCommand(args, cwd);
       const output = (stdout || stderr || '').trim();
       return this.success(output || '(pull completed)');
     } catch (error: unknown) {
-      const execErr = error as { stderr?: string; message?: string };
+      const execErr = error as { message?: string };
+      const msg = execErr.message || String(error);
       return this.error(
-        `Git pull failed: ${execErr.stderr || execErr.message || String(error)}`
+        `Git pull failed: ${msg}`
       );
     }
   }

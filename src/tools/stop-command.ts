@@ -1,4 +1,4 @@
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 import { runningCommands } from './run-command';
 
@@ -39,6 +39,9 @@ export class StopCommandTool extends BaseTool {
 
       return this.success(`Command ${commandId} has been terminated.`);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error stopping command: ${error instanceof Error ? error.message : String(error)}`
       );

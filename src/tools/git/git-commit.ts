@@ -1,9 +1,5 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import { BaseTool } from '../base';
-import { getToolDefinition } from './base';
-
-const execFileAsync = promisify(execFile);
+import { BaseTool, ValidationError } from '../base';
+import { getToolDefinition, runGitCommand } from './base';
 
 export class GitCommitTool extends BaseTool {
   definition = getToolDefinition(
@@ -27,32 +23,33 @@ export class GitCommitTool extends BaseTool {
   );
 
   async execute(params: Record<string, unknown>): Promise<{ success: boolean; output?: string; error?: string }> {
-    this.validateRequiredParams(params, ['message']);
-
-    const message = params.message as string;
-    const cwd = (params.cwd as string) || process.cwd();
-    const amend = (params.amend as boolean) || false;
-
-    if (!message || message.trim().length === 0) {
-      return this.error('Commit message cannot be empty.');
-    }
-
-    const args = ['commit', '-m', message];
-    if (amend) {
-      args.push('--amend');
-    }
-
     try {
-      const { stdout, stderr } = await execFileAsync('git', args, {
-        cwd,
-        encoding: 'utf-8',
-      });
-      const output = (stdout || stderr || '').trim();
-      return this.success(output || '(commit completed)');
-    } catch (error: unknown) {
-      const execErr = error as { stderr?: string; message?: string };
+      this.validateRequiredParams(params, ['message']);
+
+      const message = params.message as string;
+      const cwd = (params.cwd as string) || process.cwd();
+      const amend = (params.amend as boolean) || false;
+
+      if (!message || message.trim().length === 0) {
+        return this.error('Commit message cannot be empty.');
+      }
+
+      try {
+        const { stdout, stderr } = await runGitCommand(['commit', '-m', message, ...(amend ? ['--amend'] : [])], cwd);
+        const output = (stdout || stderr || '').trim();
+        return this.success(output || '(commit completed)');
+      } catch (error: unknown) {
+        const execErr = error as { message?: string };
+        return this.error(
+          `Git commit failed: ${execErr.message || String(error)}`
+        );
+      }
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
-        `Git commit failed: ${execErr.stderr || execErr.message || String(error)}`
+        `Git commit failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

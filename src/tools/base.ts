@@ -1,5 +1,12 @@
 import { ToolDefinition, Tool, ToolResult } from '../types';
 
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
 export abstract class BaseTool implements Tool {
   abstract definition: ToolDefinition;
 
@@ -11,7 +18,7 @@ export abstract class BaseTool implements Tool {
   ): void {
     for (const param of required) {
       if (params[param] === undefined || params[param] === null) {
-        throw new Error(`Missing required parameter: ${param}`);
+        throw new ValidationError(`Missing required parameter: ${param}`);
       }
     }
   }

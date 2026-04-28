@@ -1,9 +1,5 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { BaseTool } from '../base';
-import { getToolDefinition } from './base';
-
-const execFileAsync = promisify(execFile);
+import { getToolDefinition, runGitCommand } from './base';
 
 export class GitPushTool extends BaseTool {
   definition = getToolDefinition(
@@ -20,7 +16,8 @@ export class GitPushTool extends BaseTool {
       },
       force: {
         type: 'boolean',
-        description: 'Force push. Use with caution as it can overwrite remote history.',
+        description:
+          'Force push. WARNING: This can overwrite remote history and cause permanent data loss. Use only when necessary.',
       },
       cwd: {
         type: 'string',
@@ -48,16 +45,17 @@ export class GitPushTool extends BaseTool {
     }
 
     try {
-      const { stdout, stderr } = await execFileAsync('git', args, {
-        cwd,
-        encoding: 'utf-8',
-      });
+      const { stdout, stderr } = await runGitCommand(args, cwd);
       const output = (stdout || stderr || '').trim();
       return this.success(output || '(push completed)');
     } catch (error: unknown) {
-      const execErr = error as { stderr?: string; message?: string };
+      const execErr = error as { message?: string };
+      const msg = execErr.message || String(error);
+      if (msg.includes('not a git repository')) {
+        return this.error(msg);
+      }
       return this.error(
-        `Git push failed: ${execErr.stderr || execErr.message || String(error)}`
+        `Git push failed: ${msg}`
       );
     }
   }

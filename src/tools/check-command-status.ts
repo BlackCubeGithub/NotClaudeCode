@@ -1,4 +1,4 @@
-import { BaseTool } from './base';
+import { BaseTool, ValidationError } from './base';
 import { ToolDefinition, ToolResult } from '../types';
 import { runningCommands } from './run-command';
 
@@ -44,6 +44,9 @@ export class CheckCommandStatusTool extends BaseTool {
 
       return this.success(statusInfo);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return this.error(error.message);
+      }
       return this.error(
         `Error checking command status: ${error instanceof Error ? error.message : String(error)}`
       );

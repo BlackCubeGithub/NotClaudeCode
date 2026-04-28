@@ -1,9 +1,5 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { BaseTool } from '../base';
-import { getToolDefinition } from './base';
-
-const execFileAsync = promisify(execFile);
+import { getToolDefinition, runGitCommand } from './base';
 
 export class GitDiffTool extends BaseTool {
   definition = getToolDefinition(
@@ -18,6 +14,10 @@ export class GitDiffTool extends BaseTool {
         type: 'boolean',
         description: 'Show staged changes instead of working tree changes.',
       },
+      staged: {
+        type: 'boolean',
+        description: 'Alias for cached — show staged changes.',
+      },
       cwd: {
         type: 'string',
         description: 'The working directory of the git repository.',
@@ -29,7 +29,7 @@ export class GitDiffTool extends BaseTool {
   async execute(params: Record<string, unknown>): Promise<{ success: boolean; output?: string; error?: string }> {
     const cwd = (params.cwd as string) || process.cwd();
     const file = (params.file as string) || '';
-    const cached = (params.cached as boolean) || false;
+    const cached = (params.cached as boolean) || (params.staged as boolean) || false;
 
     const args = ['diff'];
     if (cached) {
@@ -40,16 +40,13 @@ export class GitDiffTool extends BaseTool {
     }
 
     try {
-      const { stdout, stderr } = await execFileAsync('git', args, {
-        cwd,
-        encoding: 'utf-8',
-      });
+      const { stdout, stderr } = await runGitCommand(args, cwd);
       const output = (stdout || stderr || '').trim();
       return this.success(output || '(no output)');
     } catch (error: unknown) {
-      const execErr = error as { stderr?: string; message?: string };
+      const execErr = error as { message?: string };
       return this.error(
-        `Git diff failed: ${execErr.stderr || execErr.message || String(error)}`
+        `Git diff failed: ${execErr.message || String(error)}`
       );
     }
   }
