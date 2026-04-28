@@ -278,6 +278,7 @@ async function handleSlashCommand(
       console.log('    /context           - Show context usage statistics');
       console.log('    /memory            - Show session memory summary');
       console.log('    /compact           - Clean up tool results to save context');
+      console.log('    /config            - Show and reload project configuration');
       console.log('    /exit, /quit       - Exit the program\n');
       console.log(chalk.white('  Session:'));
       console.log('    /session           - Show current session info');
@@ -363,6 +364,10 @@ async function handleSlashCommand(
 
     case 'compact':
       await handleCompactCommand(agent, sessionManager, rl);
+      return;
+
+    case 'config':
+      await handleConfigCommand(agent);
       return;
 
     case 'session':
@@ -809,6 +814,85 @@ async function handleCompactCommand(
     }
     return;
   }
+}
+
+async function handleConfigCommand(
+  agent: Agent
+): Promise<void> {
+  const configManager = agent.getConfigManager();
+  const result = configManager.reload();
+  const config = result.config;
+
+  console.log(chalk.cyan('\n⚙️  Project Configuration\n'));
+
+  if (result.sources.length === 0) {
+    console.log(chalk.yellow('  No configuration file found for this project.'));
+    console.log(chalk.gray('  Create NOTCLAUDECODE.md or .notclaudecode.json in your project root.\n'));
+    return;
+  }
+
+  console.log(chalk.gray('  Config sources:'));
+  for (const src of result.sources) {
+    const relPath = src.path.replace(process.cwd(), '.');
+    console.log(chalk.gray(`    - ${relPath}`));
+  }
+  console.log();
+
+  if (result.errors.length > 0) {
+    console.log(chalk.red('  Errors:'));
+    for (const err of result.errors) {
+      console.log(chalk.red(`    - ${err}`));
+    }
+    console.log();
+  }
+
+  const sections: string[] = [];
+
+  if (config.overview) {
+    sections.push(chalk.white('Overview:') + '\n  ' + chalk.gray(config.overview));
+  }
+
+  if (config.languages && config.languages.length > 0) {
+    sections.push(chalk.white('Languages:') + '\n  ' + config.languages.join(', '));
+  }
+
+  if (config.codeStyle) {
+    sections.push(chalk.white('Code Style:') + '\n  ' + chalk.gray(config.codeStyle));
+  }
+
+  if (config.commands && Object.keys(config.commands).length > 0) {
+    const cmdLines = Object.entries(config.commands)
+      .map(([alias, cmd]) => `  ${chalk.yellow(alias)}: ${chalk.gray(cmd)}`)
+      .join('\n');
+    sections.push(chalk.white('Commands:') + '\n' + cmdLines);
+  }
+
+  if (config.rules && config.rules.length > 0) {
+    const ruleLines = config.rules.map((r) => `  - ${r}`).join('\n');
+    sections.push(chalk.white('Rules:') + '\n' + ruleLines);
+  }
+
+  if (config.forbidden && config.forbidden.length > 0) {
+    const forbidLines = config.forbidden
+      .map((f) => `  - ${chalk.red(f.name)}: ${f.message}`)
+      .join('\n');
+    sections.push(chalk.white('Forbidden:') + '\n' + forbidLines);
+  }
+
+  if (config.checks && config.checks.length > 0) {
+    const checkLines = config.checks
+      .map((c) => `  [${c.required ? 'REQUIRED' : 'OPTIONAL'}] ${c.type}: ${chalk.gray(c.command)}`)
+      .join('\n');
+    sections.push(chalk.white('Checks:') + '\n' + checkLines);
+  }
+
+  if (sections.length === 0) {
+    console.log(chalk.gray('  No configuration content loaded.\n'));
+  } else {
+    console.log(sections.join('\n\n'));
+  }
+
+  console.log(chalk.gray('  Reload with /config reload\n'));
 }
 
 async function handleSkillCommand(

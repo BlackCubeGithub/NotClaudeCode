@@ -14,6 +14,16 @@
 | **交互式确认机制** | `src/cli/index.ts` | 通过 `inquirer` 触发真正的用户确认，agent 无法绕过 |
 | **Force Push 安全确认** | `src/tools/git/git-push.ts` | `force=true` 时触发交互确认，已移除无效的 `force_confirmed` 参数 |
 
+### 配置系统（NOTCLAUDECODE.md）
+
+| 功能 | 文件 | 说明 |
+|:-----|:-----|:-----|
+| **配置类型定义** | `src/types/config.ts` | `ClaudeConfig` / `ForbiddenRule` / `CheckConfig` 等类型 |
+| **ConfigManager** | `src/core/config-manager.ts` | 多层级配置加载、Markdown 解析、JSON 合并、热重载 |
+| **系统提示词注入** | `src/core/agent.ts` | 项目配置自动注入 system prompt |
+| **/config CLI 命令** | `src/cli/index.ts` | 显示和热重载项目配置 |
+| **配置管理器测试** | `tests/config-manager-test.ts` | 11 个测试用例，全部通过 |
+
 ---
 
 ## 📊 项目现状分析
@@ -109,12 +119,61 @@ src/tools/git/
 #### 2. 配置文件系统 ⭐⭐⭐⭐⭐
 
 **功能描述**：
-- ⬜ CLAUDE.md 项目配置文件支持
-- ⬜ 项目特定的编码规范和指令
-- ⬜ 自定义命令别名
-- ⬜ 多层配置（全局 / 项目 / 本地）
+- ✅ NOTCLAUDECODE.md Markdown 配置解析（项目概述、编程语言、代码风格、规则、命令、禁止操作）
+- ✅ .notclaudecode.json JSON 配置（与 Markdown 等效，优先级更高）
+- ✅ .notclaudecode.local.json 本地覆盖（最高优先级）
+- ✅ 项目配置自动注入 system prompt
+- ✅ /config CLI 命令（显示和热重载）
+- ✅ 禁止规则拦截（与危险操作拦截系统集成）
+- ⬜ 配置热重载（无需重启应用）
+- ⬜ NOTCLAUDECODE.md 自动生成（根据项目分析）
 
-**实现建议**：
+**文件结构（已实现）**：
+```
+src/types/config.ts          ✅ 配置类型定义
+src/core/config-manager.ts   ✅ 配置管理器（~380 行）
+tests/config-manager-test.ts ✅ 测试（11 个用例）
+```
+
+**配置文件示例（NOTCLAUDECODE.md）**：
+
+```markdown
+# Project Overview
+
+A TypeScript Node.js project using Express framework.
+
+## Languages
+- TypeScript, Node.js, JavaScript
+
+## Code Style
+Use strict TypeScript with 2-space indentation.
+Follow the Airbnb style guide.
+
+## Commands
+- /test: npm run test
+- /build: npm run build
+- /lint: npm run lint
+
+## Rules
+- Always run lint before commits
+- Use absolute paths for file operations
+- Prefer async/await over callbacks
+
+## Forbidden Operations
+- Force push without confirmation
+- Writing to /prod paths without approval
+
+## Automatic Checks
+- [REQUIRED] pre_commit: npm run lint
+- [REQUIRED] pre_push: npm run build
+```
+
+**预期收益**：
+- 项目级别的定制化（编码规范、可用命令、禁止操作）
+- 团队规范统一（通过 NOTCLAUDECODE.md 共享）
+- 减少重复指令（规则自动注入 system prompt）
+
+---
 
 文件结构：
 ```
@@ -122,7 +181,7 @@ src/core/config-manager.ts   # 配置管理器
 src/types/config.ts          # 配置类型定义
 ```
 
-配置文件示例（CLAUDE.md）：
+配置文件示例（NOTCLAUDECODE.md）：
 
 ```markdown
 # Project Configuration
@@ -714,7 +773,7 @@ src/core/scheduler/
 ## 📈 推荐的开发顺序
 
 ### 第一优先级（1–2 个月）
-1. **配置文件系统（CLAUDE.md）** → 2. **测试生成工作流** → 3. **Git PR 和冲突解决** → 4. **安全审计增强**
+1. **配置文件系统（NOTCLAUDECODE.md）** → 2. **测试生成工作流** → 3. **Git PR 和冲突解决** → 4. **安全审计增强**
 
 ### 第二优先级（2–3 个月）
 5. **MCP 集成** → 6. **子代理系统** → 7. **Hooks 系统** → 8. **技能市场**
@@ -755,7 +814,7 @@ src/core/scheduler/
 - ✅ 完整 Git 工具集（9 个子命令）
 - ✅ 技能系统初始化
 - ✅ **危险操作拦截系统**（Agent 层统一确认）
-- ⬜ 配置文件系统（CLAUDE.md）
+- ✅ **配置文件系统（NOTCLAUDECODE.md）**
 - ⬜ 基础测试生成工作流
 
 ### v0.3.0 — 企业协作版（预计 2 个月）
@@ -786,7 +845,7 @@ src/core/scheduler/
 | 会话管理 | ✅ | ✅ | — |
 | 上下文压缩 | ✅ | ✅ | — |
 | Git 集成 | ✅ | ✅ **部分** | v0.2.0 |
-| 配置文件 | ✅ | ⬜ | v0.2.0 |
+| 配置文件 | ✅ | ✅ | — |
 | 测试生成 | ✅ | ⬜ | v0.2.0 |
 | 代码审查 | ✅ | ✅ **部分** | v0.2.0 |
 | Skills | ✅ | ✅ | — |
@@ -811,7 +870,7 @@ src/core/scheduler/
 欢迎社区贡献！
 
 ### 优先贡献领域
-1. 配置文件系统（CLAUDE.md）
+1. 配置文件系统（NOTCLAUDECODE.md）
 2. Git PR 和冲突解决
 3. 测试用例编写
 4. 文档翻译

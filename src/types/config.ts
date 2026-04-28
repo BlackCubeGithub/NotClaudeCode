@@ -1,10 +1,10 @@
 /**
- * CLAUDE.md / .claude.json 配置系统类型定义
+ * NOTCLAUDECODE.md / .notclaudecode.json 配置系统类型定义
  *
  * 支持多层级配置合并：
  * 1. 全局配置  (~/.notclaudecode/config.json)
- * 2. 项目配置  (.claude.json / CLAUDE.md)
- * 3. 本地覆盖  (.claude.local.json)
+ * 2. 项目配置  (.notclaudecode.json / NOTCLAUDECODE.md)
+ * 3. 本地覆盖  (.notclaudecode.local.json)
  *
  * 优先级：本地 > 项目 > 全局
  */
@@ -68,7 +68,7 @@ export interface CheckConfig {
   description?: string;
 }
 
-/** 解析后的 CLAUDE.md 原始段落 */
+/** 解析后的 NOTCLAUDECODE.md 原始段落 */
 export interface ConfigSource {
   path: string;
   content: string;

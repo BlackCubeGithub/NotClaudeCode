@@ -1,9 +1,9 @@
 /**
- * CLAUDE.md 配置管理器
+ * NOTCLAUDECODE.md 配置管理器
  *
  * 职责：
  * 1. 加载多层级配置文件（全局 / 项目 / 本地）
- * 2. 解析 CLAUDE.md Markdown 格式
+ * 2. 解析 NOTCLAUDECODE.md Markdown 格式
  * 3. 合并 JSON 配置与 Markdown 配置
  * 4. 将配置转换为系统提示词片段
  *
@@ -25,8 +25,6 @@ const GLOBAL_CONFIG_DIR = path.join(
   '.notclaudecode'
 );
 const GLOBAL_CONFIG_FILE = path.join(GLOBAL_CONFIG_DIR, 'config.json');
-
-const PROJECT_CONFIG_FILES = ['CLAUDE.md', '.claude.json', '.claude.local.json'];
 
 export class ConfigManager {
   private config: ClaudeConfig = {};
@@ -51,11 +49,14 @@ export class ConfigManager {
     // 1. 全局配置（最低优先级）
     this.loadGlobalConfig();
 
-    // 2. 项目级配置（CLAUDE.md 优先于 .claude.json）
+    // 2. 项目级配置（NOTCLAUDECODE.md 优先于 .notclaudecode.json）
     this.loadProjectConfig();
 
     // 3. 本地覆盖（最高优先级）
     this.loadLocalConfig();
+
+    // 4. 验证配置规则
+    this.validateConfig();
 
     this.lastLoaded = Date.now();
 
@@ -65,6 +66,23 @@ export class ConfigManager {
       merged: this.sources.length > 1,
       errors: [...this.errors],
     };
+  }
+
+  /**
+   * 验证配置规则的有效性
+   */
+  private validateConfig(): void {
+    if (this.config.forbidden) {
+      for (let i = 0; i < this.config.forbidden.length; i++) {
+        const rule = this.config.forbidden[i];
+        if (!rule.tool && !rule.paramPattern) {
+          this.errors.push(
+            `Invalid forbidden rule at index ${i} (name: "${rule.name}"): ` +
+              `must specify at least one of "tool" or "paramPattern"`
+          );
+        }
+      }
+    }
   }
 
   /**
@@ -159,6 +177,15 @@ export class ConfigManager {
   /**
    * 检查指定工具+参数是否在禁止列表中
    */
+  private normalizeJson(obj: Record<string, unknown>): string {
+    const keys = Object.keys(obj).sort();
+    const parts: string[] = [];
+    for (const key of keys) {
+      parts.push(`"${key}":${JSON.stringify(obj[key])}`);
+    }
+    return `{${parts.join(',')}}`;
+  }
+
   isForbidden(
     toolName: string,
     params: Record<string, unknown>
@@ -166,17 +193,17 @@ export class ConfigManager {
     if (!this.config.forbidden) return { forbidden: false };
 
     for (const rule of this.config.forbidden) {
-      // 工具名匹配
+      // 规则必须至少指定 tool 或 paramPattern 其一，否则视为配置错误，跳过
+      if (!rule.tool && !rule.paramPattern) continue;
+
       if (rule.tool && rule.tool !== toolName) continue;
 
-      // 参数模式匹配
       if (rule.paramPattern) {
         try {
           const regex = new RegExp(rule.paramPattern);
-          const paramStr = JSON.stringify(params);
-          if (!regex.test(paramStr)) continue;
+          const normalized = this.normalizeJson(params);
+          if (!regex.test(normalized)) continue;
         } catch {
-          // 正则无效，跳过
           continue;
         }
       }
@@ -225,21 +252,21 @@ export class ConfigManager {
   }
 
   private loadProjectConfig(): void {
-    // 优先加载 CLAUDE.md（Markdown）
-    const mdPath = path.join(this.cwd, 'CLAUDE.md');
+    // 优先加载 NOTCLAUDECODE.md（Markdown）
+    const mdPath = path.join(this.cwd, 'NOTCLAUDECODE.md');
     if (fs.existsSync(mdPath)) {
       this.loadClaudeMd(mdPath);
     }
 
-    // 再加载 .claude.json（JSON 覆盖 Markdown）
-    const jsonPath = path.join(this.cwd, '.claude.json');
+    // 再加载 .notclaudecode.json（JSON 覆盖 Markdown）
+    const jsonPath = path.join(this.cwd, '.notclaudecode.json');
     if (fs.existsSync(jsonPath)) {
       this.loadClaudeJson(jsonPath);
     }
   }
 
   private loadLocalConfig(): void {
-    const localPath = path.join(this.cwd, '.claude.local.json');
+    const localPath = path.join(this.cwd, '.notclaudecode.local.json');
     if (fs.existsSync(localPath)) {
       this.loadClaudeJson(localPath);
     }
@@ -262,7 +289,7 @@ export class ConfigManager {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.errors.push(`Failed to parse CLAUDE.md: ${msg}`);
+      this.errors.push(`Failed to parse NOTCLAUDECODE.md: ${msg}`);
     }
   }
 
@@ -286,7 +313,7 @@ export class ConfigManager {
   }
 
   /**
-   * 解析 CLAUDE.md Markdown 格式
+   * 解析 NOTCLAUDECODE.md Markdown 格式
    *
    * 支持的段落：
    *   # Overview
@@ -330,7 +357,11 @@ export class ConfigManager {
           codeStyleLines,
           initLines,
         });
-        currentSection = headingMatch[2].toLowerCase();
+        // 提取纯 section key：去掉前缀词如 "Project Overview" → "overview"
+        const rawSection = headingMatch[2].toLowerCase().trim();
+        currentSection = rawSection
+          .replace(/^(project |项目 |项目概述 )/i, '')
+          .trim();
         // 重置临时缓冲区
         languages = [];
         rules = [];
@@ -460,9 +491,9 @@ export class ConfigManager {
       const srcVal = source[key];
       const tgtVal = result[key];
 
-      if (Array.isArray(srcVal) && Array.isArray(tgtVal)) {
-        // 数组直接覆盖而非合并（避免重复）
-        (result as Record<string, unknown>)[key] = srcVal;
+      if (Array.isArray(srcVal)) {
+        // 数组完全替换（不拼接）
+        (result as Record<string, unknown>)[key] = [...srcVal];
       } else if (
         typeof srcVal === 'object' &&
         srcVal !== null &&

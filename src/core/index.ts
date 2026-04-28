@@ -30,3 +30,5 @@ export type {
 } from './context-monitor';
 export { SkillParser, SkillManager } from './skills';
 export type { Skill, SkillStep, SkillTrigger, SkillVariable, SkillExecutionContext, SkillExecutionResult } from '../types/skill';
+export { ConfigManager } from './config-manager';
+export type { ClaudeConfig, ConfigLoadResult } from '../types/config';

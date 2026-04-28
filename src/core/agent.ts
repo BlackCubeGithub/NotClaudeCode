@@ -162,9 +162,17 @@ export class Agent {
   }
 
   private isDangerousTool(toolName: string, params: Record<string, unknown>): DangerousToolInfo | null {
+    // 内置危险操作检测
     if (toolName === 'GitPush' && params['force'] === true) {
       return { toolName, params, reason: 'Force push can overwrite remote history and cause permanent data loss.' };
     }
+
+    // NOTCLAUDECODE.md 禁止规则检测
+    const forbidden = this.configManager.isForbidden(toolName, params);
+    if (forbidden.forbidden) {
+      return { toolName, params, reason: forbidden.message || `Operation "${toolName}" is forbidden by project configuration.` };
+    }
+
     return null;
   }
 
@@ -288,6 +296,34 @@ export class Agent {
               onToolCall(toolName, params);
             }
 
+            // 运行所有 beforeTool 钩子
+            let blockedByHook = false;
+            for (const callback of this.beforeToolCallbacks) {
+              try {
+                const hookResult = await callback(toolName, params);
+                if (!hookResult.allowed) {
+                  const toolMsg = {
+                    role: 'tool' as const,
+                    tool_call_id: toolCall.id,
+                    name: toolName,
+                    content: JSON.stringify(hookResult.result || { success: false, error: 'Operation blocked by hook.' }),
+                  };
+                  this.messages.push(toolMsg);
+                  this.saveMessage(toolMsg);
+                  blockedByHook = true;
+                  break;
+                }
+              } catch (err) {
+                const errorMsg = err instanceof Error ? err.message : String(err);
+                debugLog('HOOK_ERROR', `beforeTool callback error: ${errorMsg}`);
+              }
+            }
+
+            if (blockedByHook) {
+              continue;
+            }
+
+            // 危险操作拦截（dangerousToolCallback）
             const dangerousCallback = dangerousToolCallback || this.dangerousToolCallback;
             if (dangerousCallback) {
               const dangerous = this.isDangerousTool(toolName, params);

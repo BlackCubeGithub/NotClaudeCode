@@ -498,12 +498,13 @@ NotClaudeCode 在对话过程中自动管理上下文使用，模仿 Claude Code
 
 - [x] **危险操作拦截系统** — Agent 层统一拦截，CLI 交互确认（agent 无法绕过）
 - [x] **工具基类验证重构** — `validateRequiredParams` 从 `ToolResult|null` 改为 `void` + 抛异常
+- [x] **配置文件系统（NOTCLAUDECODE.md）** — 多层级配置、Markdown 解析、system prompt 注入、`/config` 命令
 
 ### 🎯 近期计划
 
 - [ ] **压缩预览功能** — 压缩前显示预估效果
 - [ ] **会话导出 / 导入** — 支持会话数据的导出和导入
-- [ ] **配置文件支持** — 支持自定义压缩阈值等配置
+- [ ] **Agent 配置项** — 支持自定义压缩阈值等运行时配置
 
 ### 🚀 中期计划
 
